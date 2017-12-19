@@ -10,7 +10,8 @@ var templateCache = require('gulp-angular-templatecache');
 var uglify        = require('gulp-uglify');
 var merge         = require('merge-stream');
 
-let cleanCSS = require('gulp-clean-css');
+var nodemon = require('gulp-nodemon');
+var cleanCSS = require('gulp-clean-css');
 
 // Where our files are located
 // var cssFiles   = "src/style/**/*.css";
@@ -86,7 +87,29 @@ gulp.task('views', function() {
 
 // gulp.task('default', ['html', 'minify-css','browserify'], function() {
 
-gulp.task('default', ['browserify'], function() {
+
+
+/** Gulp Task to start our server when we launch gulp webserver */
+
+  gulp.task('webserver', function () {
+    var stream = nodemon({
+      script: 'src/server/app.js',
+      ext: 'js html css',
+      env: { 'NODE_ENV': 'development' }
+    })
+    stream
+      .on('restart',function() {
+        console.log('restarted');
+      })
+      
+      .on('crash',function() {
+        console.error('App has crashed!\n');
+        stream.emit('restart',10); //restart the server in 10 seconds
+      })
+  })
+  
+
+gulp.task('default', ['browserify','webserver'], function() {
 
   browserSync.init(['./src/client/**/**.**'], {
     server: "./src/client/",

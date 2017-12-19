@@ -5,7 +5,12 @@ window.onscroll = function navScroll() {
 
     var navbar = document.getElementById("navbar");
     var header = document.getElementById("head");
-    var stickyhead = header.clientHeight;
+    var stickyhead;
+    if (stickyhead == undefined){
+      stickyhead = 360;  
+    }else{
+      stickyhead = header.clientHeight;
+    }
     var sticky = navbar.offsetTop;
 
     if (window.pageYOffset - stickyhead <=sticky) {

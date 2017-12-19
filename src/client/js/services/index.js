@@ -22,5 +22,10 @@ servicesModule.service('Comments', CommentsService);
 import TagsService from './tags.service';
 servicesModule.service('Tags', TagsService);
 
+import CategoriasService from './categorias.service';
+servicesModule.service('Categorias', CategoriasService);
+
+import LocalesService from './locales.service';
+servicesModule.service('Locales', LocalesService);
 
 export default servicesModule;

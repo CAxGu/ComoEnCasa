@@ -7,9 +7,15 @@ var http = require('http'),
     cors = require('cors'),
     passport = require('passport'),
     errorhandler = require('errorhandler'),
-    mongoose = require('mongoose');
+    mongoose = require('mongoose'),
+    dotenv = require('dotenv');
+    dotenv.load({path:'./.env'});
+
+var mongoLab = process.env.MONGOLAB_CRED;
+var mongoLocal = process.env.MONGOLOCAL;
 
 var isProduction = process.env.NODE_ENV === 'production';
+/* var isProduction; */
 
 // Create global app object
 var app = express();
@@ -31,13 +37,16 @@ if (!isProduction) {
 }
 
 if(isProduction){
-  mongoose.connect(process.env.MONGODB_URI);
+  // mongoose.connect(process.env.MONGODB_URI);
+  //mongoose.connect(mongoLab);
 } else {
-  mongoose.connect('mongodb://localhost/conduit');
+  mongoose.connect('mongodb://localhost:27017/proyectoangnode');
   mongoose.set('debug', true);
 }
 
 require('./models/User');
+require('./models/Categoria');
+require('./models/Locales');
 require('./models/Article');
 require('./models/Comment');
 require('./config/passport');

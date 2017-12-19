@@ -1,0 +1,56 @@
+<link rel="stylesheet" href="style/locales_style.css">
+<section id="sections" class="sections">
+    <section id="content" class="content" >
+        <section id="locals" ng-show="$loc.locales">
+            <div class="sectionHead">
+                <h3>LOCALES</h3>
+                <span class="slogan">List of all Locals in the app</span>
+            </div>
+        </section>
+        <section id="listlocals">
+            <div class="gridlist">
+                <div class="search">
+                   <label><span class="searchtext">Search: </span><input ng-model="search.$"></label>
+                </div>
+                <div class="maps">
+                        <ng-map default-style="true" center="current-location" zoom="10">
+                                <marker id="mark{{$index}}" position="{{local.latitud}},{{local.longitud}}"
+                                  on-click="map.showInfoWindow(event, 'infow{{local.nombre}}{{$index}}')" ng-repeat="local in $loc.locales | filter:search">
+                                </marker>
+                                <info-window id="infow{{local.nombre}}{{$index}}" max-width="200" ng-repeat="local in $loc.locales" position="current-location">
+                                  <div>
+                                    <div id="siteNotice"></div>
+                                    <h1 id="firstHeading">{{local.nombre}}</h1>
+                                    <div id="bodyContent">
+                                        <img height="100" width="150" src="img/locales/{{local.categorias.subcategoria[0]}}.jpg">
+                                        <p><label>Dir: </label>{{local.direccion}} ({{local.poblacion}},{{local.provincia}})<br>
+                                            <label>Telf: </label>{{local.telf}}
+                                        </p>
+                                    </div>
+                                  </div>
+                                </info-window>
+                              </ng-map>
+                </div>
+                <div class="listado">
+                    <ul>
+                        <li class="list" ng-repeat="local in $loc.locales | filter:search:strict">
+                            <a href="">
+                                <section id="gridcardlocal">
+                                    <div id="imagenlocal">
+                                        <img src="img/locales/{{local.categorias.subcategoria[0]}}.jpg">
+                                    </div>
+                                    <div id="desclocal">
+                                        <label>Nombre:&nbsp;&nbsp;&nbsp;<span class="menucontent">{{local.nombre}}</span></label><br>
+                                        <label>Categ:&nbsp;&nbsp;&nbsp;<span class="menucontent">{{local.categorias.subcategoria[0]}}</span></label><br>
+                                        <label>Telf:&nbsp;&nbsp;&nbsp;<span class="menucontent">{{local.telf}}</span></label><br>
+                                        <label>Distancia:&nbsp;&nbsp;&nbsp;<span class="menucontent">x km</span></label>
+                                    </div>
+                                </section>
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+    </section>
+</section>

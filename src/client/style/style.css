@@ -2,13 +2,30 @@
 
 @font-face {
   font-family: headertext;
-  src: url("../fonts/KGBrokenVesselsSketch.ttf") format('truetype'); /*http://www.fontspace.com/kimberly-geswein/kg-broken-vessels-sketch*/
+  src: url("../fonts/KGBrokenVesselsSketch.ttf") format('truetype'); 
+  /*http://www.fontspace.com/kimberly-geswein/kg-broken-vessels-sketch*/
 }
 
 @font-face {
   font-family: contenttext;
-  src: url("../fonts/DJBThisFontisWorn.ttf") format('truetype'); /*http://www.fontspace.com/darcy-baldwin-fonts/djb-this-font-is-worn*/
+  src: url("../fonts/DJBThisFontisWorn.ttf") format('truetype'); 
+  /*http://www.fontspace.com/darcy-baldwin-fonts/djb-this-font-is-worn*/
 }
+
+
+@font-face {
+  font-family: menutittle;
+  src: url("../fonts/menuetto.ttf") format('truetype'); 
+  /*https://www.dafont.com/es/menuetto.font*/
+}
+
+
+@font-face {
+  font-family: menucontenttext;
+  src: url("../fonts/SpeakeasyMenuRegular.ttf") format('truetype'); 
+  /*https://www.dafont.com/es/speakeasy-menu.font*/
+}
+
 
 /*----------------------------------------------------------*/
 
@@ -190,7 +207,35 @@ background-image: url("../img/dark-blackboard.png");
   grid-column-end: 4;
 }
 
-.gridlocals section.cat1{
+.gridlocals section.cat{
+  text-align: center;
+  color:white;
+  font-size: 0.5em;
+  font-family: contenttext;
+}
+
+section.cat div{
+  width: 0.5fr;
+  height: 250px;
+}
+
+/* section.cat label{
+PADDING-top: -10;
+} */
+
+section.cat div img{
+  padding-left: 5%;
+  padding-right: 5%;
+  width: 90%;
+  height: 90%;
+}
+
+section.cat a.linkcat:hover{
+  color: #FECE1A;
+}
+
+/* GRID WITHOUT NG-REPEAT */
+/* .gridlocals section.cat1{
   text-align: center;
   color:white;
   font-size: 0.5em;
@@ -234,7 +279,7 @@ section.cat3 div img{
   padding-right: 5%;
   width: 90%;
   height: 90%;
-}
+} */
 
 
 /* Navbar  to filter categories */
