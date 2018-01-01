@@ -35,12 +35,11 @@
             <textarea required ng-model="contact.inputMessage" class="input-block-level inputtextbox" rows="4" id="inputMessage" name="inputMessage" placeholder="Introduzca aqui su mensaje *" style="max-width: 100%;" dir="auto"></textarea>
             <span class="text-danger" ng-show="contact_form.inputMessage.$error.required && (contact_form.inputMessage.$dirty || contact_form.inputMessage.$touched)">El campo es obligatorio</span>
         </div>
-
         <input type="hidden" name="token" value="contact_form" />
         
         <input class="btn btn-primary send" type="submit" name="submit" id="submitBtn" value="Enviar" 
-               ng-show="contact_form.inputName.$valid && contact_form.inputEmail.$valid && contact_form.inputMessage.$valid" 
-               ng-click="SubmitContact()"/>
+            ng-show="contact_form.inputName.$valid && contact_form.inputEmail.$valid && contact_form.inputMessage.$valid" 
+            ng-click="SubmitContact()"/>
         
         <div id="resultMessage" ng-class="class">{{message}}</div>
     </form> 

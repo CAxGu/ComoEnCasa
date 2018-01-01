@@ -28,4 +28,7 @@ servicesModule.service('Categorias', CategoriasService);
 import LocalesService from './locales.service';
 servicesModule.service('Locales', LocalesService);
 
+import ContactService from './contact.service';
+servicesModule.service('Contact', ContactService);
+
 export default servicesModule;

@@ -1,4 +1,519 @@
 (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
+(function() {
+  'use strict';
+
+  angular.module('toastr', [])
+    .factory('toastr', toastr);
+
+  toastr.$inject = ['$animate', '$injector', '$document', '$rootScope', '$sce', 'toastrConfig', '$q'];
+
+  function toastr($animate, $injector, $document, $rootScope, $sce, toastrConfig, $q) {
+    var container;
+    var index = 0;
+    var toasts = [];
+
+    var previousToastMessage = '';
+    var openToasts = {};
+
+    var containerDefer = $q.defer();
+
+    var toast = {
+      active: active,
+      clear: clear,
+      error: error,
+      info: info,
+      remove: remove,
+      success: success,
+      warning: warning,
+      refreshTimer: refreshTimer
+    };
+
+    return toast;
+
+    /* Public API */
+    function active() {
+      return toasts.length;
+    }
+
+    function clear(toast) {
+      // Bit of a hack, I will remove this soon with a BC
+      if (arguments.length === 1 && !toast) { return; }
+
+      if (toast) {
+        remove(toast.toastId);
+      } else {
+        for (var i = 0; i < toasts.length; i++) {
+          remove(toasts[i].toastId);
+        }
+      }
+    }
+
+    function error(message, title, optionsOverride) {
+      var type = _getOptions().iconClasses.error;
+      return _buildNotification(type, message, title, optionsOverride);
+    }
+
+    function info(message, title, optionsOverride) {
+      var type = _getOptions().iconClasses.info;
+      return _buildNotification(type, message, title, optionsOverride);
+    }
+
+    function success(message, title, optionsOverride) {
+      var type = _getOptions().iconClasses.success;
+      return _buildNotification(type, message, title, optionsOverride);
+    }
+
+    function warning(message, title, optionsOverride) {
+      var type = _getOptions().iconClasses.warning;
+      return _buildNotification(type, message, title, optionsOverride);
+    }
+
+    function refreshTimer(toast, newTime) {
+      if (toast && toast.isOpened && toasts.indexOf(toast) >= 0) {
+          toast.scope.refreshTimer(newTime);
+      }
+    }
+
+    function remove(toastId, wasClicked) {
+      var toast = findToast(toastId);
+
+      if (toast && ! toast.deleting) { // Avoid clicking when fading out
+        toast.deleting = true;
+        toast.isOpened = false;
+        $animate.leave(toast.el).then(function() {
+          if (toast.scope.options.onHidden) {
+            toast.scope.options.onHidden(!!wasClicked, toast);
+          }
+          toast.scope.$destroy();
+          var index = toasts.indexOf(toast);
+          delete openToasts[toast.scope.message];
+          toasts.splice(index, 1);
+          var maxOpened = toastrConfig.maxOpened;
+          if (maxOpened && toasts.length >= maxOpened) {
+            toasts[maxOpened - 1].open.resolve();
+          }
+          if (lastToast()) {
+            container.remove();
+            container = null;
+            containerDefer = $q.defer();
+          }
+        });
+      }
+
+      function findToast(toastId) {
+        for (var i = 0; i < toasts.length; i++) {
+          if (toasts[i].toastId === toastId) {
+            return toasts[i];
+          }
+        }
+      }
+
+      function lastToast() {
+        return !toasts.length;
+      }
+    }
+
+    /* Internal functions */
+    function _buildNotification(type, message, title, optionsOverride) {
+      if (angular.isObject(title)) {
+        optionsOverride = title;
+        title = null;
+      }
+
+      return _notify({
+        iconClass: type,
+        message: message,
+        optionsOverride: optionsOverride,
+        title: title
+      });
+    }
+
+    function _getOptions() {
+      return angular.extend({}, toastrConfig);
+    }
+
+    function _createOrGetContainer(options) {
+      if(container) { return containerDefer.promise; }
+
+      container = angular.element('<div></div>');
+      container.attr('id', options.containerId);
+      container.addClass(options.positionClass);
+      container.css({'pointer-events': 'auto'});
+
+      var target = angular.element(document.querySelector(options.target));
+
+      if ( ! target || ! target.length) {
+        throw 'Target for toasts doesn\'t exist';
+      }
+
+      $animate.enter(container, target).then(function() {
+        containerDefer.resolve();
+      });
+
+      return containerDefer.promise;
+    }
+
+    function _notify(map) {
+      var options = _getOptions();
+
+      if (shouldExit()) { return; }
+
+      var newToast = createToast();
+
+      toasts.push(newToast);
+
+      if (ifMaxOpenedAndAutoDismiss()) {
+        var oldToasts = toasts.slice(0, (toasts.length - options.maxOpened));
+        for (var i = 0, len = oldToasts.length; i < len; i++) {
+          remove(oldToasts[i].toastId);
+        }
+      }
+
+      if (maxOpenedNotReached()) {
+        newToast.open.resolve();
+      }
+
+      newToast.open.promise.then(function() {
+        _createOrGetContainer(options).then(function() {
+          newToast.isOpened = true;
+          if (options.newestOnTop) {
+            $animate.enter(newToast.el, container).then(function() {
+              newToast.scope.init();
+            });
+          } else {
+            var sibling = container[0].lastChild ? angular.element(container[0].lastChild) : null;
+            $animate.enter(newToast.el, container, sibling).then(function() {
+              newToast.scope.init();
+            });
+          }
+        });
+      });
+
+      return newToast;
+
+      function ifMaxOpenedAndAutoDismiss() {
+        return options.autoDismiss && options.maxOpened && toasts.length > options.maxOpened;
+      }
+
+      function createScope(toast, map, options) {
+        if (options.allowHtml) {
+          toast.scope.allowHtml = true;
+          toast.scope.title = $sce.trustAsHtml(map.title);
+          toast.scope.message = $sce.trustAsHtml(map.message);
+        } else {
+          toast.scope.title = map.title;
+          toast.scope.message = map.message;
+        }
+
+        toast.scope.toastType = toast.iconClass;
+        toast.scope.toastId = toast.toastId;
+        toast.scope.extraData = options.extraData;
+
+        toast.scope.options = {
+          extendedTimeOut: options.extendedTimeOut,
+          messageClass: options.messageClass,
+          onHidden: options.onHidden,
+          onShown: generateEvent('onShown'),
+          onTap: generateEvent('onTap'),
+          progressBar: options.progressBar,
+          tapToDismiss: options.tapToDismiss,
+          timeOut: options.timeOut,
+          titleClass: options.titleClass,
+          toastClass: options.toastClass
+        };
+
+        if (options.closeButton) {
+          toast.scope.options.closeHtml = options.closeHtml;
+        }
+
+        function generateEvent(event) {
+          if (options[event]) {
+            return function() {
+              options[event](toast);
+            };
+          }
+        }
+      }
+
+      function createToast() {
+        var newToast = {
+          toastId: index++,
+          isOpened: false,
+          scope: $rootScope.$new(),
+          open: $q.defer()
+        };
+        newToast.iconClass = map.iconClass;
+        if (map.optionsOverride) {
+          angular.extend(options, cleanOptionsOverride(map.optionsOverride));
+          newToast.iconClass = map.optionsOverride.iconClass || newToast.iconClass;
+        }
+
+        createScope(newToast, map, options);
+
+        newToast.el = createToastEl(newToast.scope);
+
+        return newToast;
+
+        function cleanOptionsOverride(options) {
+          var badOptions = ['containerId', 'iconClasses', 'maxOpened', 'newestOnTop',
+                            'positionClass', 'preventDuplicates', 'preventOpenDuplicates', 'templates'];
+          for (var i = 0, l = badOptions.length; i < l; i++) {
+            delete options[badOptions[i]];
+          }
+
+          return options;
+        }
+      }
+
+      function createToastEl(scope) {
+        var angularDomEl = angular.element('<div toast></div>'),
+          $compile = $injector.get('$compile');
+        return $compile(angularDomEl)(scope);
+      }
+
+      function maxOpenedNotReached() {
+        return options.maxOpened && toasts.length <= options.maxOpened || !options.maxOpened;
+      }
+
+      function shouldExit() {
+        var isDuplicateOfLast = options.preventDuplicates && map.message === previousToastMessage;
+        var isDuplicateOpen = options.preventOpenDuplicates && openToasts[map.message];
+
+        if (isDuplicateOfLast || isDuplicateOpen) {
+          return true;
+        }
+
+        previousToastMessage = map.message;
+        openToasts[map.message] = true;
+
+        return false;
+      }
+    }
+  }
+}());
+
+(function() {
+  'use strict';
+
+  angular.module('toastr')
+    .constant('toastrConfig', {
+      allowHtml: false,
+      autoDismiss: false,
+      closeButton: false,
+      closeHtml: '<button>&times;</button>',
+      containerId: 'toast-container',
+      extendedTimeOut: 1000,
+      iconClasses: {
+        error: 'toast-error',
+        info: 'toast-info',
+        success: 'toast-success',
+        warning: 'toast-warning'
+      },
+      maxOpened: 0,
+      messageClass: 'toast-message',
+      newestOnTop: true,
+      onHidden: null,
+      onShown: null,
+      onTap: null,
+      positionClass: 'toast-top-right',
+      preventDuplicates: false,
+      preventOpenDuplicates: false,
+      progressBar: false,
+      tapToDismiss: true,
+      target: 'body',
+      templates: {
+        toast: 'directives/toast/toast.html',
+        progressbar: 'directives/progressbar/progressbar.html'
+      },
+      timeOut: 5000,
+      titleClass: 'toast-title',
+      toastClass: 'toast'
+    });
+}());
+
+(function() {
+  'use strict';
+
+  angular.module('toastr')
+    .directive('progressBar', progressBar);
+
+  progressBar.$inject = ['toastrConfig'];
+
+  function progressBar(toastrConfig) {
+    return {
+      require: '^toast',
+      templateUrl: function() {
+        return toastrConfig.templates.progressbar;
+      },
+      link: linkFunction
+    };
+
+    function linkFunction(scope, element, attrs, toastCtrl) {
+      var intervalId, currentTimeOut, hideTime;
+
+      toastCtrl.progressBar = scope;
+
+      scope.start = function(duration) {
+        if (intervalId) {
+          clearInterval(intervalId);
+        }
+
+        currentTimeOut = parseFloat(duration);
+        hideTime = new Date().getTime() + currentTimeOut;
+        intervalId = setInterval(updateProgress, 10);
+      };
+
+      scope.stop = function() {
+        if (intervalId) {
+          clearInterval(intervalId);
+        }
+      };
+
+      function updateProgress() {
+        var percentage = ((hideTime - (new Date().getTime())) / currentTimeOut) * 100;
+        element.css('width', percentage + '%');
+      }
+
+      scope.$on('$destroy', function() {
+        // Failsafe stop
+        clearInterval(intervalId);
+      });
+    }
+  }
+}());
+
+(function() {
+  'use strict';
+
+  angular.module('toastr')
+    .controller('ToastController', ToastController);
+
+  function ToastController() {
+    this.progressBar = null;
+
+    this.startProgressBar = function(duration) {
+      if (this.progressBar) {
+        this.progressBar.start(duration);
+      }
+    };
+
+    this.stopProgressBar = function() {
+      if (this.progressBar) {
+        this.progressBar.stop();
+      }
+    };
+  }
+}());
+
+(function() {
+  'use strict';
+
+  angular.module('toastr')
+    .directive('toast', toast);
+
+  toast.$inject = ['$injector', '$interval', 'toastrConfig', 'toastr'];
+
+  function toast($injector, $interval, toastrConfig, toastr) {
+    return {
+      templateUrl: function() {
+        return toastrConfig.templates.toast;
+      },
+      controller: 'ToastController',
+      link: toastLinkFunction
+    };
+
+    function toastLinkFunction(scope, element, attrs, toastCtrl) {
+      var timeout;
+
+      scope.toastClass = scope.options.toastClass;
+      scope.titleClass = scope.options.titleClass;
+      scope.messageClass = scope.options.messageClass;
+      scope.progressBar = scope.options.progressBar;
+
+      if (wantsCloseButton()) {
+        var button = angular.element(scope.options.closeHtml),
+          $compile = $injector.get('$compile');
+        button.addClass('toast-close-button');
+        button.attr('ng-click', 'close(true, $event)');
+        $compile(button)(scope);
+        element.children().prepend(button);
+      }
+
+      scope.init = function() {
+        if (scope.options.timeOut) {
+          timeout = createTimeout(scope.options.timeOut);
+        }
+        if (scope.options.onShown) {
+          scope.options.onShown();
+        }
+      };
+
+      element.on('mouseenter', function() {
+        hideAndStopProgressBar();
+        if (timeout) {
+          $interval.cancel(timeout);
+        }
+      });
+
+      scope.tapToast = function () {
+        if (angular.isFunction(scope.options.onTap)) {
+          scope.options.onTap();
+        }
+        if (scope.options.tapToDismiss) {
+          scope.close(true);
+        }
+      };
+
+      scope.close = function (wasClicked, $event) {
+        if ($event && angular.isFunction($event.stopPropagation)) {
+          $event.stopPropagation();
+        }
+        toastr.remove(scope.toastId, wasClicked);
+      };
+      
+      scope.refreshTimer = function(newTime) {
+        if (timeout) {
+          $interval.cancel(timeout);
+          timeout = createTimeout(newTime || scope.options.timeOut);
+        }
+      };
+
+      element.on('mouseleave', function() {
+        if (scope.options.timeOut === 0 && scope.options.extendedTimeOut === 0) { return; }
+        scope.$apply(function() {
+          scope.progressBar = scope.options.progressBar;
+        });
+        timeout = createTimeout(scope.options.extendedTimeOut);
+      });
+
+      function createTimeout(time) {
+        toastCtrl.startProgressBar(time);
+        return $interval(function() {
+          toastCtrl.stopProgressBar();
+          toastr.remove(scope.toastId);
+        }, time, 1);
+      }
+
+      function hideAndStopProgressBar() {
+        scope.progressBar = false;
+        toastCtrl.stopProgressBar();
+      }
+
+      function wantsCloseButton() {
+        return scope.options.closeHtml;
+      }
+    }
+  }
+}());
+
+angular.module("toastr").run(["$templateCache", function($templateCache) {$templateCache.put("directives/progressbar/progressbar.html","<div class=\"toast-progress\"></div>\n");
+$templateCache.put("directives/toast/toast.html","<div class=\"{{toastClass}} {{toastType}}\" ng-click=\"tapToast()\">\n  <div ng-switch on=\"allowHtml\">\n    <div ng-switch-default ng-if=\"title\" class=\"{{titleClass}}\" aria-label=\"{{title}}\">{{title}}</div>\n    <div ng-switch-default class=\"{{messageClass}}\" aria-label=\"{{message}}\">{{message}}</div>\n    <div ng-switch-when=\"true\" ng-if=\"title\" class=\"{{titleClass}}\" ng-bind-html=\"title\"></div>\n    <div ng-switch-when=\"true\" class=\"{{messageClass}}\" ng-bind-html=\"message\"></div>\n  </div>\n  <progress-bar ng-if=\"progressBar\"></progress-bar>\n</div>\n");}]);
+},{}],2:[function(require,module,exports){
+require('./dist/angular-toastr.tpls.js');
+module.exports = 'toastr';
+
+
+},{"./dist/angular-toastr.tpls.js":1}],3:[function(require,module,exports){
 /**
  * State-based routing for AngularJS
  * @version v0.4.3
@@ -4683,7 +5198,7 @@ angular.module('ui.router.state')
   .filter('isState', $IsStateFilter)
   .filter('includedByState', $IncludedByStateFilter);
 })(window, window.angular);
-},{}],2:[function(require,module,exports){
+},{}],4:[function(require,module,exports){
 /**
  * @license AngularJS v1.6.6
  * (c) 2010-2017 Google, Inc. http://angularjs.org
@@ -38573,11 +39088,11 @@ $provide.value("$locale", {
 })(window);
 
 !window.angular.$$csp().noInlineStyle && window.angular.element(document.head).prepend('<style type="text/css">@charset "UTF-8";[ng\\:cloak],[ng-cloak],[data-ng-cloak],[x-ng-cloak],.ng-cloak,.x-ng-cloak,.ng-hide:not(.ng-hide-animate){display:none !important;}ng\\:form{display:block;}.ng-animate-shim{visibility:hidden;}.ng-anchor{position:absolute;}</style>');
-},{}],3:[function(require,module,exports){
+},{}],5:[function(require,module,exports){
 require('./angular');
 module.exports = angular;
 
-},{"./angular":2}],4:[function(require,module,exports){
+},{"./angular":4}],6:[function(require,module,exports){
 (function (global){
 /**
  * marked - a markdown parser
@@ -39867,7 +40382,7 @@ if (typeof module !== 'undefined' && typeof exports === 'object') {
 }());
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{}],5:[function(require,module,exports){
+},{}],7:[function(require,module,exports){
 (function(root, factory) {
 if (typeof exports === "object") {
 module.exports = factory(require('angular'));
@@ -43317,7 +43832,7 @@ angular.module('ngMap', []);
 
 return 'ngMap';
 }));
-},{"angular":3}],6:[function(require,module,exports){
+},{"angular":5}],8:[function(require,module,exports){
 'use strict';
 
 var _angular = require('angular');
@@ -43339,6 +43854,10 @@ var _app6 = _interopRequireDefault(_app5);
 require('angular-ui-router');
 
 require('ngmap');
+
+var _angularToastr = require('angular-toastr');
+
+var _angularToastr2 = _interopRequireDefault(_angularToastr);
 
 require('./config/app.templates');
 
@@ -43370,14 +43889,14 @@ function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { de
 
 /* import 'ngMap'; */
 // Import our templates file (generated by Gulp)
-var requires = ['ngMap', 'ui.router', 'templates', 'app.layout', 'app.components', 'app.home', 'app.contact', 'app.profile', 'app.article', 'app.services', 'app.auth', 'app.settings', 'app.editor', 'app.locales'];
+
+
+// Import our app config files
+var requires = ['ngMap', 'ui.router', 'templates', 'app.layout', 'app.components', 'app.home', 'app.contact', 'app.profile', 'app.article', 'app.services', 'app.auth', 'app.settings', 'app.editor', 'app.locales', 'toastr'];
 
 // Mount on window for testing
 
 // Import our app functionaity
-
-
-// Import our app config files
 window.app = _angular2.default.module('app', requires);
 
 _angular2.default.module('app').constant('AppConstants', _app2.default);
@@ -43390,7 +43909,7 @@ _angular2.default.bootstrap(document, ['app'], {
   strictDi: true
 });
 
-},{"./article":11,"./auth":14,"./components":21,"./config/app.config":24,"./config/app.constants":25,"./config/app.run":26,"./config/app.templates":27,"./contact":31,"./editor":34,"./home":37,"./layout":40,"./locales":41,"./profile":44,"./services":51,"./settings":57,"angular":3,"angular-ui-router":1,"ngmap":5}],7:[function(require,module,exports){
+},{"./article":13,"./auth":16,"./components":23,"./config/app.config":26,"./config/app.constants":27,"./config/app.run":28,"./config/app.templates":29,"./contact":33,"./editor":36,"./home":39,"./layout":42,"./locales":43,"./profile":46,"./services":54,"./settings":60,"angular":5,"angular-toastr":2,"angular-ui-router":3,"ngmap":7}],9:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -43445,7 +43964,7 @@ var ArticleActions = {
 
 exports.default = ArticleActions;
 
-},{}],8:[function(require,module,exports){
+},{}],10:[function(require,module,exports){
 'use strict';
 
 ArticleConfig.$inject = ["$stateProvider"];
@@ -43475,7 +43994,7 @@ function ArticleConfig($stateProvider) {
 
 exports.default = ArticleConfig;
 
-},{}],9:[function(require,module,exports){
+},{}],11:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -43557,7 +44076,7 @@ var ArticleCtrl = function () {
 
 exports.default = ArticleCtrl;
 
-},{"marked":4}],10:[function(require,module,exports){
+},{"marked":6}],12:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -43590,7 +44109,7 @@ var Comment = {
 
 exports.default = Comment;
 
-},{}],11:[function(require,module,exports){
+},{}],13:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -43636,7 +44155,7 @@ articleModule.component('comment', _comment2.default);
 
 exports.default = articleModule;
 
-},{"./article-actions.component":7,"./article.config":8,"./article.controller":9,"./comment.component":10,"angular":3}],12:[function(require,module,exports){
+},{"./article-actions.component":9,"./article.config":10,"./article.controller":11,"./comment.component":12,"angular":5}],14:[function(require,module,exports){
 'use strict';
 
 AuthConfig.$inject = ["$stateProvider", "$httpProvider"];
@@ -43671,7 +44190,7 @@ function AuthConfig($stateProvider, $httpProvider) {
 
 exports.default = AuthConfig;
 
-},{}],13:[function(require,module,exports){
+},{}],15:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -43717,7 +44236,7 @@ var AuthCtrl = function () {
 
 exports.default = AuthCtrl;
 
-},{}],14:[function(require,module,exports){
+},{}],16:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -43751,7 +44270,7 @@ authModule.controller('AuthCtrl', _auth4.default);
 
 exports.default = authModule;
 
-},{"./auth.config":12,"./auth.controller":13,"angular":3}],15:[function(require,module,exports){
+},{"./auth.config":14,"./auth.controller":15,"angular":5}],17:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -43854,7 +44373,7 @@ var ArticleList = {
 
 exports.default = ArticleList;
 
-},{}],16:[function(require,module,exports){
+},{}],18:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -43870,7 +44389,7 @@ var ArticleMeta = {
 
 exports.default = ArticleMeta;
 
-},{}],17:[function(require,module,exports){
+},{}],19:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -43885,7 +44404,7 @@ var ArticlePreview = {
 
 exports.default = ArticlePreview;
 
-},{}],18:[function(require,module,exports){
+},{}],20:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -43938,7 +44457,7 @@ var ListPagination = {
 
 exports.default = ListPagination;
 
-},{}],19:[function(require,module,exports){
+},{}],21:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -44003,7 +44522,7 @@ var FavoriteBtn = {
 
 exports.default = FavoriteBtn;
 
-},{}],20:[function(require,module,exports){
+},{}],22:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -44069,7 +44588,7 @@ var FollowBtn = {
 
 exports.default = FollowBtn;
 
-},{}],21:[function(require,module,exports){
+},{}],23:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -44134,7 +44653,7 @@ componentsModule.component('listPagination', _listPagination2.default);
 
 exports.default = componentsModule;
 
-},{"./article-helpers/article-list.component":15,"./article-helpers/article-meta.component":16,"./article-helpers/article-preview.component":17,"./article-helpers/list-pagination.component":18,"./buttons/favorite-btn.component":19,"./buttons/follow-btn.component":20,"./list-errors.component":22,"./show-authed.directive":23,"angular":3}],22:[function(require,module,exports){
+},{"./article-helpers/article-list.component":17,"./article-helpers/article-meta.component":18,"./article-helpers/article-preview.component":19,"./article-helpers/list-pagination.component":20,"./buttons/favorite-btn.component":21,"./buttons/follow-btn.component":22,"./list-errors.component":24,"./show-authed.directive":25,"angular":5}],24:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -44149,7 +44668,7 @@ var ListErrors = {
 
 exports.default = ListErrors;
 
-},{}],23:[function(require,module,exports){
+},{}],25:[function(require,module,exports){
 'use strict';
 
 ShowAuthed.$inject = ["User"];
@@ -44188,7 +44707,7 @@ function ShowAuthed(User) {
 
 exports.default = ShowAuthed;
 
-},{}],24:[function(require,module,exports){
+},{}],26:[function(require,module,exports){
 'use strict';
 
 AppConfig.$inject = ["$httpProvider", "$stateProvider", "$locationProvider", "$urlRouterProvider"];
@@ -44228,7 +44747,7 @@ function AppConfig($httpProvider, $stateProvider, $locationProvider, $urlRouterP
 
 exports.default = AppConfig;
 
-},{"./auth.interceptor":28}],25:[function(require,module,exports){
+},{"./auth.interceptor":30}],27:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -44243,7 +44762,7 @@ var AppConstants = {
 
 exports.default = AppConstants;
 
-},{}],26:[function(require,module,exports){
+},{}],28:[function(require,module,exports){
 'use strict';
 
 AppRun.$inject = ["AppConstants", "$rootScope"];
@@ -44272,7 +44791,7 @@ function AppRun(AppConstants, $rootScope) {
 
 exports.default = AppRun;
 
-},{}],27:[function(require,module,exports){
+},{}],29:[function(require,module,exports){
 "use strict";
 
 angular.module("templates", []).run(["$templateCache", function ($templateCache) {
@@ -44281,8 +44800,8 @@ angular.module("templates", []).run(["$templateCache", function ($templateCache)
   $templateCache.put("article/comment.html", "<div class=\"card\">\n  <div class=\"card-block\">\n    <p class=\"card-text\" ng-bind=\"::$ctrl.data.body\"></p>\n  </div>\n  <div class=\"card-footer\">\n    <a class=\"comment-author\" ui-sref=\"app.profile.main({ username: $ctrl.data.author.username })\">\n      <img ng-src=\"{{::$ctrl.data.author.image}}\" class=\"comment-author-img\" />\n    </a>\n    &nbsp;\n    <a class=\"comment-author\" ui-sref=\"app.profile.main({ username: $ctrl.data.author.username })\" ng-bind=\"::$ctrl.data.author.username\">\n    </a>\n    <span class=\"date-posted\"\n      ng-bind=\"::$ctrl.data.createdAt | date: \'longDate\'\">\n    </span>\n    <span class=\"mod-options\" ng-show=\"$ctrl.canModify\">\n      <i class=\"ion-trash-a\" ng-click=\"$ctrl.deleteCb()\"></i>\n    </span>\n  </div>\n</div>\n");
   $templateCache.put("auth/auth.html", "<div class=\"auth-page\">\n  <div class=\"container page\">\n    <div class=\"row\">\n\n      <div class=\"col-md-6 offset-md-3 col-xs-12\">\n        <h1 class=\"text-xs-center\" ng-bind=\"::$ctrl.title\"></h1>\n        <p class=\"text-xs-center\">\n          <a ui-sref=\"app.login\"\n            ng-show=\"$ctrl.authType === \'register\'\">\n            Have an account?\n          </a>\n          <a ui-sref=\"app.register\"\n            ng-show=\"$ctrl.authType === \'login\'\">\n            Need an account?\n          </a>\n        </p>\n\n        <list-errors errors=\"$ctrl.errors\"></list-errors>\n\n        <form ng-submit=\"$ctrl.submitForm()\">\n          <fieldset ng-disabled=\"$ctrl.isSubmitting\">\n\n            <fieldset class=\"form-group\" ng-show=\"$ctrl.authType === \'register\'\">\n              <input class=\"form-control form-control-lg\"\n                type=\"text\"\n                placeholder=\"Username\"\n                ng-model=\"$ctrl.formData.username\" />\n            </fieldset>\n\n            <fieldset class=\"form-group\">\n              <input class=\"form-control form-control-lg\"\n                type=\"email\"\n                placeholder=\"Email\"\n                ng-model=\"$ctrl.formData.email\" />\n            </fieldset>\n\n            <fieldset class=\"form-group\">\n              <input class=\"form-control form-control-lg\"\n                type=\"password\"\n                placeholder=\"Password\"\n                ng-model=\"$ctrl.formData.password\" />\n            </fieldset>\n\n            <button class=\"btn btn-lg btn-primary pull-xs-right\"\n              type=\"submit\"\n              ng-bind=\"::$ctrl.title\">\n            </button>\n\n          </fieldset>\n        </form>\n      </div>\n\n    </div>\n  </div>\n</div>\n");
   $templateCache.put("components/list-errors.html", "<ul class=\"error-messages\" ng-show=\"$ctrl.errors\">\n  <div ng-repeat=\"(field, errors) in $ctrl.errors\">\n    <li ng-repeat=\"error in errors\">\n      {{field}} {{error}}\n    </li>\n  </div>\n</ul>\n");
+  $templateCache.put("contact/contact.view.html", "<script src=\"js/contact/bootstrap-button.js\"></script>\n<link rel=\"stylesheet\" href=\"style/contact_style.css\">\n<section id=\"sections\" class=\"sections\">\n    <!-- information or sections inside the section with grey background -->\n    <section id=\"content\" class=\"content\" >\n        <!-- Content of contact section -->\n    \n    <form id=\"contact_form\" name=\"contact_form\" class=\"form-contact\">\n        <div class=\"sectionHead\">\n                <h3>Contact With Us</h3>\n        </div>\n        <div class=\"control-group\">\n            <input required ng-model=\"contact.inputName\" type=\"text\" id=\"inputName\" name=\"inputName\" placeholder=\"Nombre\" class=\"input-block-level inputtext\" dir=\"auto\" maxlength=\"100\">\n            <span class=\"text-danger\" ng-show=\"contact_form.inputName.$error.required && (contact_form.inputName.$dirty || contact_form.inputName.$touched)\">El campo es obligatorio</span>\n        </div>\n        <div class=\"control-group\">\n            <input required ng-model=\"contact.inputEmail\" type=\"email\" id=\"inputEmail\" name=\"inputEmail\" placeholder=\"Email *\" class=\"input-block-level inputtext\" maxlength=\"100\" ng-pattern=\"/^[a-z0-9!#$%&\'*+/=?^_`{|}~.-]+@[a-z0-9-]+(\\.[a-z0-9-]+)*$/i\">\n            <span class=\"text-danger\" ng-show=\"contact_form.inputEmail.$error.required && (contact_form.inputEmail.$dirty || contact_form.inputEmail.$touched)\">El campo es obligatorio</span>\n            <span class=\"text-danger\" ng-show=\"contact_form.inputEmail.$error.email\"><br>Email no valido</span>\n        </div>\n        <div class=\"control-group\">\n            <label class=\"combolabel\" for=\"sel1\">Tema de Consulta: </label>\n            <select ng-model=\"contact.inputSubject\" class=\"form-control combobox\" id=\"inputSubject\" name=\"inputSubject\" title=\"Choose subject\">\n                <option class=\"optioncombo\" value=\"\">- Por favor, seleccione un tema de consulta -</option>\n                <option class=\"optioncombo\" value=\"servicio\">Info relativa a algun servicio</option>\n                <option class=\"optioncombo\" value=\"dpto\">Contacta con nuestro dpto de programación</option>\n                <option class=\"optioncombo\" value=\"trabaja\">Trabaja con nosotros</option>\n                <option class=\"optioncombo\" value=\"sugerencias\">Haznos sugerencias</option>\n                <option class=\"optioncombo\" value=\"reclamaciones\">Atendemos tus reclamaciones</option>\n                <option class=\"optioncombo\" value=\"novedades\">Te avisamos de nuestras novedades</option>\n                <option class=\"optioncombo\" value=\"diferente\">Otros</option>\n            </select>\n        </div>\n        <div class=\"control-group\">\n            <textarea required ng-model=\"contact.inputMessage\" class=\"input-block-level inputtextbox\" rows=\"4\" id=\"inputMessage\" name=\"inputMessage\" placeholder=\"Introduzca aqui su mensaje *\" style=\"max-width: 100%;\" dir=\"auto\"></textarea>\n            <span class=\"text-danger\" ng-show=\"contact_form.inputMessage.$error.required && (contact_form.inputMessage.$dirty || contact_form.inputMessage.$touched)\">El campo es obligatorio</span>\n        </div>\n        <input type=\"hidden\" name=\"token\" value=\"contact_form\" />\n        \n        <input class=\"btn btn-primary send\" type=\"submit\" name=\"submit\" id=\"submitBtn\" value=\"Enviar\" \n            ng-show=\"contact_form.inputName.$valid && contact_form.inputEmail.$valid && contact_form.inputMessage.$valid\" \n            ng-click=\"SubmitContact()\"/>\n        \n        <div id=\"resultMessage\" ng-class=\"class\">{{message}}</div>\n    </form> \n    </section>\n</section>\n\n");
   $templateCache.put("editor/editor.html", "<div class=\"editor-page\">\n  <div class=\"container page\">\n    <div class=\"row\">\n      <div class=\"col-md-10 offset-md-1 col-xs-12\">\n\n        <list-errors errors=\"$ctrl.errors\"></list-errors>\n\n        <form>\n          <fieldset ng-disabled=\"$ctrl.isSubmitting\">\n\n            <fieldset class=\"form-group\">\n              <input class=\"form-control form-control-lg\"\n                ng-model=\"$ctrl.article.title\"\n                type=\"text\"\n                placeholder=\"Article Title\" />\n            </fieldset>\n\n            <fieldset class=\"form-group\">\n              <input class=\"form-control\"\n                ng-model=\"$ctrl.article.description\"\n                type=\"text\"\n                placeholder=\"What\'s this article about?\" />\n            </fieldset>\n\n            <fieldset class=\"form-group\">\n              <textarea class=\"form-control\"\n                rows=\"8\"\n                ng-model=\"$ctrl.article.body\"\n                placeholder=\"Write your article (in markdown)\">\n              </textarea>\n            </fieldset>\n\n            <fieldset class=\"form-group\">\n              <input class=\"form-control\"\n                type=\"text\"\n                placeholder=\"Enter tags\"\n                ng-model=\"$ctrl.tagField\"\n                ng-keyup=\"$event.keyCode == 13 && $ctrl.addTag()\" />\n\n              <div class=\"tag-list\">\n                <span ng-repeat=\"tag in $ctrl.article.tagList\"\n                  class=\"tag-default tag-pill\">\n                  <i class=\"ion-close-round\" ng-click=\"$ctrl.removeTag(tag)\"></i>\n                  {{ tag }}\n                </span>\n              </div>\n            </fieldset>\n\n            <button class=\"btn btn-lg pull-xs-right btn-primary\" type=\"button\" ng-click=\"$ctrl.submit()\">\n              Publish Article\n            </button>\n\n          </fieldset>\n        </form>\n\n      </div>\n    </div>\n  </div>\n</div>\n");
-  $templateCache.put("contact/contact.view.html", "<script src=\"js/contact/bootstrap-button.js\"></script>\n<link rel=\"stylesheet\" href=\"style/contact_style.css\">\n<section id=\"sections\" class=\"sections\">\n    <!-- information or sections inside the section with grey background -->\n    <section id=\"content\" class=\"content\" >\n        <!-- Content of contact section -->\n    \n    <form id=\"contact_form\" name=\"contact_form\" class=\"form-contact\">\n        <div class=\"sectionHead\">\n                <h3>Contact With Us</h3>\n        </div>\n        <div class=\"control-group\">\n            <input required ng-model=\"contact.inputName\" type=\"text\" id=\"inputName\" name=\"inputName\" placeholder=\"Nombre\" class=\"input-block-level inputtext\" dir=\"auto\" maxlength=\"100\">\n            <span class=\"text-danger\" ng-show=\"contact_form.inputName.$error.required && (contact_form.inputName.$dirty || contact_form.inputName.$touched)\">El campo es obligatorio</span>\n        </div>\n        <div class=\"control-group\">\n            <input required ng-model=\"contact.inputEmail\" type=\"email\" id=\"inputEmail\" name=\"inputEmail\" placeholder=\"Email *\" class=\"input-block-level inputtext\" maxlength=\"100\" ng-pattern=\"/^[a-z0-9!#$%&\'*+/=?^_`{|}~.-]+@[a-z0-9-]+(\\.[a-z0-9-]+)*$/i\">\n            <span class=\"text-danger\" ng-show=\"contact_form.inputEmail.$error.required && (contact_form.inputEmail.$dirty || contact_form.inputEmail.$touched)\">El campo es obligatorio</span>\n            <span class=\"text-danger\" ng-show=\"contact_form.inputEmail.$error.email\"><br>Email no valido</span>\n        </div>\n        <div class=\"control-group\">\n            <label class=\"combolabel\" for=\"sel1\">Tema de Consulta: </label>\n            <select ng-model=\"contact.inputSubject\" class=\"form-control combobox\" id=\"inputSubject\" name=\"inputSubject\" title=\"Choose subject\">\n                <option class=\"optioncombo\" value=\"\">- Por favor, seleccione un tema de consulta -</option>\n                <option class=\"optioncombo\" value=\"servicio\">Info relativa a algun servicio</option>\n                <option class=\"optioncombo\" value=\"dpto\">Contacta con nuestro dpto de programación</option>\n                <option class=\"optioncombo\" value=\"trabaja\">Trabaja con nosotros</option>\n                <option class=\"optioncombo\" value=\"sugerencias\">Haznos sugerencias</option>\n                <option class=\"optioncombo\" value=\"reclamaciones\">Atendemos tus reclamaciones</option>\n                <option class=\"optioncombo\" value=\"novedades\">Te avisamos de nuestras novedades</option>\n                <option class=\"optioncombo\" value=\"diferente\">Otros</option>\n            </select>\n        </div>\n        <div class=\"control-group\">\n            <textarea required ng-model=\"contact.inputMessage\" class=\"input-block-level inputtextbox\" rows=\"4\" id=\"inputMessage\" name=\"inputMessage\" placeholder=\"Introduzca aqui su mensaje *\" style=\"max-width: 100%;\" dir=\"auto\"></textarea>\n            <span class=\"text-danger\" ng-show=\"contact_form.inputMessage.$error.required && (contact_form.inputMessage.$dirty || contact_form.inputMessage.$touched)\">El campo es obligatorio</span>\n        </div>\n\n        <input type=\"hidden\" name=\"token\" value=\"contact_form\" />\n        \n        <input class=\"btn btn-primary send\" type=\"submit\" name=\"submit\" id=\"submitBtn\" value=\"Enviar\" \n               ng-show=\"contact_form.inputName.$valid && contact_form.inputEmail.$valid && contact_form.inputMessage.$valid\" \n               ng-click=\"SubmitContact()\"/>\n        \n        <div id=\"resultMessage\" ng-class=\"class\">{{message}}</div>\n    </form> \n    </section>\n</section>\n\n");
   $templateCache.put("home/home.html", "<header id=\"head\" class=\"head\">\n    <div class=\"logo gridlogo\">\n      <img src=\"img/logo.png\"/>\n    </div>\n    <span class=\"slogan\">Proyecto Angular - NodeJS (Migración)</span>\n</header>\n<section id=\"sections\" class=\"sections\">\n  <!-- information or sections inside the section with grey background -->\n  <section id=\"content\" class=\"content\" >\n      <!-- Content of mains section -->\n      <section id=\"main\">\n              <div class=\"sectionHead\">\n                  <h3>HOME</h3>\n              </div>\n              <div>\n                  <article>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Aliquam eget malesuada ante, ut iaculis lectus. Suspendisse sodales ac justo eget ultrices. Donec ipsum urna, eleifend et purus a, aliquam convallis arcu. Suspendisse pretium massa ante, ac aliquam ligula placerat scelerisque. Aenean lacus diam, rhoncus non fringilla ac, luctus quis magna. Aliquam non convallis massa. In non nisl sagittis, iaculis leo sit amet, rhoncus sem. Duis nec ex vel sapien convallis tristique. Vivamus gravida risus et augue tempus auctor. Pellentesque nec orci sit amet magna viverra imperdiet.\n                          \n                          Interdum et malesuada fames ac ante ipsum primis in faucibus. Nunc in ullamcorper ex. Pellentesque sed bibendum urna, non interdum ex. Curabitur sagittis sem augue, ut tincidunt ex tincidunt nec. Suspendisse sodales elit non ipsum pharetra molestie. Nunc molestie porttitor turpis, id porta diam. Curabitur vitae porttitor massa. Vestibulum in ipsum magna. Aenean ut venenatis tellus, eget mattis ante. Nunc pretium velit et nibh volutpat fringilla. Interdum et malesuada fames ac ante ipsum primis in faucibus. Nullam aliquam lacus at enim luctus vestibulum. In pellentesque ante lectus, facilisis convallis arcu pellentesque et. Ut consectetur egestas massa, et maximus tellus condimentum et. Donec pulvinar cursus erat, id faucibus est auctor in.\n                  </article>\n              </div>\n      </section>\n      <!-- Content of locals section -->\n      <section id=\"locals\">\n              <div class=\"sectionHead\">\n                  <h3>LOCALS</h3>\n                  <span class=\"slogan\">Here you can check by categories the diferents services</span>\n              </div>\n              <section id=\"categoriaslocals\">\n                  <div class=\"gridlocals\">\n                      <nav class=\"navbarlocals\">\n                          <ul>\n                              <li><a ui-sref=\"app.locales\" class=\"active\">Todo</a></li>\n                          </ul>      \n                      </nav>\n                      <section class=\"cat\" ng-repeat=\"categoria in $ctrl.categorias\">\n                        <a ui-sref=\"app.{{categoria.cat}}\">\n                        <div>\n                            <img src=\"{{categoria.foto}}\"/>\n                        </div>\n                            <label>{{categoria.cat}}</label>\n                        </a>\n                     </section>\n                  </div>\n              </section>\n      </section>\n      <!-- Content of About section -->\n      <section id=\"about\">\n              <div class=\"sectionHead\">\n                  <h3>ABOUT</h3>\n              </div>\n              <div>\n                  <article>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Aliquam eget malesuada ante, ut iaculis lectus. Suspendisse sodales ac justo eget ultrices. Donec ipsum urna, eleifend et purus a, aliquam convallis arcu. Suspendisse pretium massa ante, ac aliquam ligula placerat scelerisque. Aenean lacus diam, rhoncus non fringilla ac, luctus quis magna. Aliquam non convallis massa. In non nisl sagittis, iaculis leo sit amet, rhoncus sem. Duis nec ex vel sapien convallis tristique. Vivamus gravida risus et augue tempus auctor. Pellentesque nec orci sit amet magna viverra imperdiet.\n                          \n                          Interdum et malesuada fames ac ante ipsum primis in faucibus. Nunc in ullamcorper ex. Pellentesque sed bibendum urna, non interdum ex. Curabitur sagittis sem augue, ut tincidunt ex tincidunt nec. Suspendisse sodales elit non ipsum pharetra molestie. Nunc molestie porttitor turpis, id porta diam. Curabitur vitae porttitor massa. Vestibulum in ipsum magna. Aenean ut venenatis tellus, eget mattis ante. Nunc pretium velit et nibh volutpat fringilla. Interdum et malesuada fames ac ante ipsum primis in faucibus. Nullam aliquam lacus at enim luctus vestibulum. In pellentesque ante lectus, facilisis convallis arcu pellentesque et. Ut consectetur egestas massa, et maximus tellus condimentum et. Donec pulvinar cursus erat, id faucibus est auctor in.\n                          \n                          Maecenas fringilla suscipit turpis ac tempor. Morbi sed lorem ornare, egestas diam quis, feugiat elit. Phasellus non leo nulla. Nunc eget commodo risus, quis suscipit risus. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Ut tempus elementum finibus. Quisque lobortis quam vel nunc semper, gravida tempus ipsum pretium. Nullam dapibus vulputate nisl at malesuada. Morbi lectus felis, elementum a venenatis eleifend, facilisis quis sapien. In hac habitasse platea dictumst. Suspendisse id arcu neque. Pellentesque eget nulla eros.\n                          \n                          Nunc est mi, dictum ac molestie nec, venenatis a justo. Quisque porta congue nibh ac hendrerit. Aenean interdum felis magna, sed rhoncus lorem semper ut. Mauris leo est, fringilla id rutrum id, efficitur eu mauris. Donec nisi dui, pulvinar non sagittis non, molestie quis odio. Praesent dictum justo molestie velit feugiat eleifend. Quisque sed tincidunt nibh. Mauris pharetra, purus et sagittis placerat, massa leo gravida nulla, maximus luctus magna sem vel justo. Nulla a mattis leo. Phasellus orci est, rhoncus sit amet eros quis, porttitor commodo justo. Sed vitae tincidunt neque, a vestibulum nulla.\n                          \n                          In ac mattis erat. Fusce at nulla sapien. In hac habitasse platea dictumst. Phasellus id lorem ut ipsum blandit tristique nec ac erat. Etiam luctus ipsum nec tincidunt vulputate. Class aptent taciti sociosqu ad litora torquent per conubia nostra, per inceptos himenaeos. Donec euismod ultrices mi a posuere. Maecenas malesuada malesuada mauris, eget ultricies ex sollicitudin id. Cras quis venenatis purus. Aenean posuere nisi consectetur quam convallis aliquet. Vivamus in dui in enim scelerisque auctor. Etiam sapien turpis, feugiat at sem et, ornare consectetur ante.\n                          \n                  </article>\n              </div>\n      </section>\n  </section>\n</section>\n");
   $templateCache.put("layout/app-view.html", "<app-header></app-header>\n\n<div ui-view></div>\n\n<app-footer></app-footer>\n");
   $templateCache.put("layout/footer.html", "<footer class=\"footer\">\n  <p>Proyecto Angular 2ºDAW- Carlos y Oscar 2017</p>\n </footer>\n</body>\n</html>");
@@ -44302,7 +44821,7 @@ angular.module("templates", []).run(["$templateCache", function ($templateCache)
   $templateCache.put("components/buttons/follow-btn.html", "<button\n  class=\"btn btn-sm action-btn\"\n  ng-class=\"{ \'disabled\': $ctrl.isSubmitting,\n              \'btn-outline-secondary\': !$ctrl.user.following,\n              \'btn-secondary\': $ctrl.user.following }\"\n  ng-click=\"$ctrl.submit()\">\n  <i class=\"ion-plus-round\"></i>\n  &nbsp;\n  {{ $ctrl.user.following ? \'Unfollow\' : \'Follow\' }} {{ $ctrl.user.username }}\n</button>\n");
 }]);
 
-},{}],28:[function(require,module,exports){
+},{}],30:[function(require,module,exports){
 'use strict';
 
 authInterceptor.$inject = ["JWT", "AppConstants", "$window", "$q"];
@@ -44337,7 +44856,7 @@ function authInterceptor(JWT, AppConstants, $window, $q) {
 
 exports.default = authInterceptor;
 
-},{}],29:[function(require,module,exports){
+},{}],31:[function(require,module,exports){
 'use strict';
 
 ContactConfig.$inject = ["$stateProvider"];
@@ -44358,57 +44877,48 @@ function ContactConfig($stateProvider) {
 
 exports.default = ContactConfig;
 
-},{}],30:[function(require,module,exports){
-'use strict';
+},{}],32:[function(require,module,exports){
+"use strict";
 
 Object.defineProperty(exports, "__esModule", {
   value: true
 });
 
-var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
-
 function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
 
-var ContactCtrl = function () {
-  ContactCtrl.$inject = ["User", "Tags", "AppConstants", "$scope"];
-  function ContactCtrl(User, Tags, AppConstants, $scope) {
-    'ngInject';
+var ContactCtrl = function ContactCtrl(Contact, AppConstants, $scope, $state, toastr) {
+  'ngInject';
 
-    _classCallCheck(this, ContactCtrl);
+  var _this = this;
 
-    this.appName = AppConstants.appName;
-    this._$scope = $scope;
+  _classCallCheck(this, ContactCtrl);
 
-    // Get list of all tags
-    // Tags
-    //   .getAll()
-    //   .then(
-    //     (tags) => {
-    //       this.tagsLoaded = true;
-    //       this.tags = tags
-    //     }
-    //   );
+  this.appName = AppConstants.appName;
+  this._$scope = $scope;
+  this._Contact = Contact;
+  this._$state = $state;
+  this._toastr = toastr;
 
-
-    // Set current list to either feed or all, depending on auth status.
-    this.listConfig = {
-      type: User.current ? 'feed' : 'all'
-    };
-  }
-
-  _createClass(ContactCtrl, [{
-    key: 'changeList',
-    value: function changeList(newList) {
-      this._$scope.$broadcast('setListTo', newList);
-    }
-  }]);
-
-  return ContactCtrl;
-}();
+  $scope.SubmitContact = function () {
+    var data = { "name": $scope.contact.inputName, "to": $scope.contact.inputEmail, "subject": $scope.contact.inputSubject, "text": $scope.contact.inputMessage, "from": 'nipontourpruebas@gmail.com' };
+    _this._Contact.sendMail(data).then(function (success) {
+      console.log("Se envio correctamente");
+      $scope.message = 'Se envio correctamente';
+      toastr.success('Se envio correctamente', 'Email');
+      setTimeout(function () {
+        $state.go('app.home');
+      }, 5000);
+    }, function (err) {
+      toastr.error('Ha habido algun error intentalo mas tarde', 'Email');
+      $scope.message = 'Ha habido algun error intentalo';
+    });
+  };
+};
+ContactCtrl.$inject = ["Contact", "AppConstants", "$scope", "$state", "toastr"];
 
 exports.default = ContactCtrl;
 
-},{}],31:[function(require,module,exports){
+},{}],33:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -44442,7 +44952,7 @@ contactModule.controller('ContactCtrl', _contact4.default);
 
 exports.default = contactModule;
 
-},{"./contact.config":29,"./contact.controller":30,"angular":3}],32:[function(require,module,exports){
+},{"./contact.config":31,"./contact.controller":32,"angular":5}],34:[function(require,module,exports){
 'use strict';
 
 EditorConfig.$inject = ["$stateProvider"];
@@ -44485,7 +44995,7 @@ function EditorConfig($stateProvider) {
 
 exports.default = EditorConfig;
 
-},{}],33:[function(require,module,exports){
+},{}],35:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -44554,7 +45064,7 @@ var EditorCtrl = function () {
 
 exports.default = EditorCtrl;
 
-},{}],34:[function(require,module,exports){
+},{}],36:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -44588,7 +45098,7 @@ editorModule.controller('EditorCtrl', _editor4.default);
 
 exports.default = editorModule;
 
-},{"./editor.config":32,"./editor.controller":33,"angular":3}],35:[function(require,module,exports){
+},{"./editor.config":34,"./editor.controller":35,"angular":5}],37:[function(require,module,exports){
 'use strict';
 
 HomeConfig.$inject = ["$stateProvider"];
@@ -44609,7 +45119,7 @@ function HomeConfig($stateProvider) {
 
 exports.default = HomeConfig;
 
-},{}],36:[function(require,module,exports){
+},{}],38:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -44651,7 +45161,7 @@ HomeCtrl.$inject = ["User", "Categorias", "AppConstants", "$scope"];
 
 exports.default = HomeCtrl;
 
-},{}],37:[function(require,module,exports){
+},{}],39:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -44685,7 +45195,7 @@ homeModule.controller('HomeCtrl', _home4.default);
 
 exports.default = homeModule;
 
-},{"./home.config":35,"./home.controller":36,"angular":3}],38:[function(require,module,exports){
+},{"./home.config":37,"./home.controller":38,"angular":5}],40:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -44713,7 +45223,7 @@ var AppFooter = {
 
 exports.default = AppFooter;
 
-},{}],39:[function(require,module,exports){
+},{}],41:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -44745,7 +45255,7 @@ var AppHeader = {
 
 exports.default = AppHeader;
 
-},{}],40:[function(require,module,exports){
+},{}],42:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -44777,7 +45287,7 @@ layoutModule.component('appFooter', _footer2.default);
 
 exports.default = layoutModule;
 
-},{"./footer.component":38,"./header.component":39,"angular":3}],41:[function(require,module,exports){
+},{"./footer.component":40,"./header.component":41,"angular":5}],43:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -44811,7 +45321,7 @@ localesModule.controller('LocalesCtrl', _locales4.default);
 
 exports.default = localesModule;
 
-},{"./locales.config":42,"./locales.controller":43,"angular":3}],42:[function(require,module,exports){
+},{"./locales.config":44,"./locales.controller":45,"angular":5}],44:[function(require,module,exports){
 'use strict';
 
 LocalesConfig.$inject = ["$stateProvider"];
@@ -44850,7 +45360,7 @@ function LocalesConfig($stateProvider) {
 
 exports.default = LocalesConfig;
 
-},{}],43:[function(require,module,exports){
+},{}],45:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -44897,7 +45407,7 @@ LocalesCtrl.$inject = ["User", "Locales", "AppConstants", "$scope"];
 
 exports.default = LocalesCtrl;
 
-},{}],44:[function(require,module,exports){
+},{}],46:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -44937,7 +45447,7 @@ profileModule.controller('ProfileArticlesCtrl', _profileArticles2.default);
 
 exports.default = profileModule;
 
-},{"./profile-articles.controller":45,"./profile.config":46,"./profile.controller":47,"angular":3}],45:[function(require,module,exports){
+},{"./profile-articles.controller":47,"./profile.config":48,"./profile.controller":49,"angular":5}],47:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -44975,7 +45485,7 @@ ProfileArticlesCtrl.$inject = ["profile", "$state", "$rootScope"];
 
 exports.default = ProfileArticlesCtrl;
 
-},{}],46:[function(require,module,exports){
+},{}],48:[function(require,module,exports){
 'use strict';
 
 ProfileConfig.$inject = ["$stateProvider"];
@@ -45018,7 +45528,7 @@ function ProfileConfig($stateProvider) {
 
 exports.default = ProfileConfig;
 
-},{}],47:[function(require,module,exports){
+},{}],49:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -45045,7 +45555,7 @@ ProfileCtrl.$inject = ["profile", "User"];
 
 exports.default = ProfileCtrl;
 
-},{}],48:[function(require,module,exports){
+},{}],50:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -45162,7 +45672,7 @@ var Articles = function () {
 
 exports.default = Articles;
 
-},{}],49:[function(require,module,exports){
+},{}],51:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -45202,7 +45712,7 @@ var Categorias = function () {
 
 exports.default = Categorias;
 
-},{}],50:[function(require,module,exports){
+},{}],52:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -45263,7 +45773,49 @@ var Comments = function () {
 
 exports.default = Comments;
 
-},{}],51:[function(require,module,exports){
+},{}],53:[function(require,module,exports){
+'use strict';
+
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+
+var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
+
+function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+var Contact = function () {
+    Contact.$inject = ["AppConstants", "$http"];
+    function Contact(AppConstants, $http) {
+        'ngInject';
+
+        _classCallCheck(this, Contact);
+
+        this._AppConstants = AppConstants;
+        this._$http = $http;
+    }
+
+    _createClass(Contact, [{
+        key: 'sendMail',
+        value: function sendMail(payload) {
+            return this._$http({
+                url: this._AppConstants.api + '/contact/sendmail',
+                method: 'POST',
+                data: payload
+            }).then(function (res) {
+                res.data.succes;
+            }, function (err) {
+                res.data.err;
+            });
+        }
+    }]);
+
+    return Contact;
+}();
+
+exports.default = Contact;
+
+},{}],54:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -45306,6 +45858,10 @@ var _locales = require('./locales.service');
 
 var _locales2 = _interopRequireDefault(_locales);
 
+var _contact = require('./contact.service');
+
+var _contact2 = _interopRequireDefault(_contact);
+
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
 // Create the module where our functionality can attach to
@@ -45327,9 +45883,11 @@ servicesModule.service('Categorias', _categorias2.default);
 
 servicesModule.service('Locales', _locales2.default);
 
+servicesModule.service('Contact', _contact2.default);
+
 exports.default = servicesModule;
 
-},{"./articles.service":48,"./categorias.service":49,"./comments.service":50,"./jwt.service":52,"./locales.service":53,"./profile.service":54,"./tags.service":55,"./user.service":56,"angular":3}],52:[function(require,module,exports){
+},{"./articles.service":50,"./categorias.service":51,"./comments.service":52,"./contact.service":53,"./jwt.service":55,"./locales.service":56,"./profile.service":57,"./tags.service":58,"./user.service":59,"angular":5}],55:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -45373,7 +45931,7 @@ var JWT = function () {
 
 exports.default = JWT;
 
-},{}],53:[function(require,module,exports){
+},{}],56:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -45413,7 +45971,7 @@ var Locales = function () {
 
 exports.default = Locales;
 
-},{}],54:[function(require,module,exports){
+},{}],57:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -45472,7 +46030,7 @@ var Profile = function () {
 
 exports.default = Profile;
 
-},{}],55:[function(require,module,exports){
+},{}],58:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -45512,7 +46070,7 @@ var Tags = function () {
 
 exports.default = Tags;
 
-},{}],56:[function(require,module,exports){
+},{}],59:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -45637,7 +46195,7 @@ var User = function () {
 
 exports.default = User;
 
-},{}],57:[function(require,module,exports){
+},{}],60:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -45670,7 +46228,7 @@ settingsModule.controller('SettingsCtrl', _settings4.default);
 
 exports.default = settingsModule;
 
-},{"./settings.config":58,"./settings.controller":59,"angular":3}],58:[function(require,module,exports){
+},{"./settings.config":61,"./settings.controller":62,"angular":5}],61:[function(require,module,exports){
 'use strict';
 
 SettingsConfig.$inject = ["$stateProvider"];
@@ -45696,7 +46254,7 @@ function SettingsConfig($stateProvider) {
 
 exports.default = SettingsConfig;
 
-},{}],59:[function(require,module,exports){
+},{}],62:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -45747,4 +46305,4 @@ var SettingsCtrl = function () {
 
 exports.default = SettingsCtrl;
 
-},{}]},{},[6]);
+},{}]},{},[8]);

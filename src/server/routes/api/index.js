@@ -6,6 +6,7 @@ router.use('/articles', require('./articles'));
 router.use('/locales', require('./locales'));
 router.use('/categorias', require('./categorias'));
 router.use('/tags', require('./tags'));
+router.use('/contact',require('./contact'));
 
 router.use(function(err, req, res, next){
   if(err.name === 'ValidationError'){

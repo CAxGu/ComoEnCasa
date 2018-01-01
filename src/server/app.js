@@ -1,3 +1,4 @@
+require('dotenv').config()
 var http = require('http'),
     path = require('path'),
     methods = require('methods'),
@@ -7,16 +8,15 @@ var http = require('http'),
     cors = require('cors'),
     passport = require('passport'),
     errorhandler = require('errorhandler'),
-    mongoose = require('mongoose'),
-    dotenv = require('dotenv');
-    dotenv.load({path:'./.env'});
+    mongoose = require('mongoose')
 
 var mongoLab = process.env.MONGOLAB_CRED;
 var mongoLocal = process.env.MONGOLOCAL;
-
+console.log(mongoLab);
+console.log(`${mongoLab}`);
 var isProduction = process.env.NODE_ENV === 'production';
 /* var isProduction; */
-
+console.log(process.env)
 // Create global app object
 var app = express();
 
