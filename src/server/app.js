@@ -1,6 +1,5 @@
 require('dotenv').config()
 var http = require('http'),
-    path = require('path'),
     methods = require('methods'),
     express = require('express'),
     bodyParser = require('body-parser'),
@@ -37,11 +36,10 @@ if (!isProduction) {
 }
 
 if(isProduction){
-  // mongoose.connect(process.env.MONGODB_URI);
-  //mongoose.connect(mongoLab);
+    mongoose.connect(process.env.MONGOLOCAL);
 } else {
-  mongoose.connect('mongodb://localhost:27017/proyectoangnode');
-  mongoose.set('debug', true);
+    mongoose.connect('mongodb://localhost:27017/locals');
+    mongoose.set('debug', true);
 }
 
 require('./models/User');

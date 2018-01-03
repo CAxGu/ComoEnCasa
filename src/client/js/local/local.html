@@ -1,0 +1,54 @@
+<link rel="stylesheet" href="style/detail_style.css">
+<section id="sections" class="sections">
+  <!-- information or sections inside the section with grey background -->
+  <section id="content" class="content" >
+      <!-- Content of mains section -->
+      <section id="main">
+  <!-- Banner for article title, action buttons -->
+  <div class="banner">
+    <div class="container">
+      <h3 ng-bind="::$ctrl.local.nombre"></h3>
+      <br>
+      <h6>{{$ctrl.local.direccion}}, {{$ctrl.local.poblacion}}, {{$ctrl.local.provincia}} <a href="" ng-click="gotoAnchor('gmaps')")>(gmaps)</a></h6>
+      <h6> <i class="fa fa-phone" aria-hidden="true"></i> {{$ctrl.local.telf}}</h6>
+      <div class="detail_div">
+        <div class="slider_details">
+            <img src="https://www.wien.info/media/images/41993-das-loft-sofitel-19to1.jpeg" alt="restaurant elite">
+        </div>
+      </div>
+      <div class="detail_div">
+        <div class="info_local">
+          <div class="box">Nombre: </div>
+          <div class="box" ng-bind="::$ctrl.local.nombre"></div>
+          <div class="box">Telefono: </div>
+          <div class="box" ng-bind="::$ctrl.local.telf"></div>
+          <div class="box">Direccion: </div>
+          <div class="box" ng-bind="::$ctrl.local.direccion"></div>
+          <div class="box">Poblacion: </div>
+          <div class="box" ng-bind="::$ctrl.local.poblacion"></div>
+          <div class="box">Provincia: </div>
+          <div class="box" ng-bind="::$ctrl.local.provincia"></div>
+        </div>
+      </div>
+      <div class="article-meta">
+        <!-- Show author info + favorite & follow buttons -->
+        <article-actions article="$ctrl.article"></article-actions>
+      </div>
+      <div id="anchorgmaps">
+        <ng-map center="[{{$ctrl.local.latitud}}, {{$ctrl.local.longitud}}]" zoom="13">
+          <marker position="{{$ctrl.local.latitud}}, {{$ctrl.local.longitud}}"></marker>
+          <!-- <marker position="current-location"></marker> -->
+          <directions
+            draggable="true"
+            travel-mode="DRIVING"
+            origin="current-location"
+            destination="{{$ctrl.local.direccion}}, {{$ctrl.local.poblacion}}, {{$ctrl.local.provincia}}, Spain">
+           <!--  destination="Pare Luis Colomer 11, Ontinyent , Comunidad Valeciana, Spain"> -->
+          </directions>
+        </ng-map>
+      </div>
+    </div>
+  </div>
+  </section>
+  </section>
+  </section>

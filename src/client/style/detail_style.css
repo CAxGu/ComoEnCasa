@@ -1,0 +1,45 @@
+.detail_div{
+    width: 100%;
+}
+    .grid_detail{
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        grid-gap: 10px;
+    }
+
+
+
+.box {
+  background-color: #444;
+  color: #fff;
+  border-radius: 5px;
+  padding: 20px;
+  font-size: 100%;
+}
+
+.box:nth-child(even) {
+  background-color: #ccc;
+  color: #000;
+}
+
+    .info_local {
+        width: 25%;
+        display: grid;
+        grid-gap: 10px;
+        grid-template-columns: repeat(auto-fill, 100% 100%);
+    }
+
+.slider_details img{
+    margin: 0 auto;
+    width: 95%;
+    height: 45%;
+    display: block;
+    padding: 3%;
+}
+
+h1, h2, h3, h4, h5, h6{
+    margin: 5px;
+    font-weight: normal;
+    color: #fff;
+    font-family: headertext;
+}

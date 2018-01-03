@@ -1,24 +1,26 @@
 var mongoose = require('mongoose');
+var uniqueValidator = require('mongoose-unique-validator');
+var User = mongoose.model('User');
 /* var uniqueValidator = require('mongoose-unique-validator');
 var slug = require('slug'); */
 
 var LocalesSchema = new mongoose.Schema({
 /*   slug: {type: String, lowercase: true, unique: true}, */
-  nombre : String,
-	telf : String,
-	direccion : String,
-	poblacion : String,
-	provincia : String,
-	latitud : String,
-	longitud : String,
-	foto : String,
-	categorias : {
-    categoria : String,
-		subcategoria : Array
-  }
+    _id: {type: String, unique: true},
+    nombre: String,
+    telefono: String,
+    direccion: String,
+    poblacion: String,
+    provincia: String,
+    latitud: Number,
+    longitud: Number,
+    foto: String,
+    categorias:{
+        categoria:[String],
+        subcategoria:[String]
+    }
 
-
-});
+},{timestamps: true});
 
 /* CategoriaSchema.plugin(uniqueValidator, {message: 'is already taken'}); */
 
@@ -43,6 +45,21 @@ var LocalesSchema = new mongoose.Schema({
     return article.save();
   });
 }; */
+
+LocalesSchema.methods.toJSONFor = function(user){
+  return {
+    _id: this._id,
+    nombre: this.nombre,
+    telefono: this.telefono,
+    direccion: this.direccion,
+    poblacion: this.poblacion,
+    provincia: this.provincia,
+    latitud: this.latitud,
+    longitud: this.longitud,
+    foto: this.foto,
+    categoria: this.categoria
+  };
+};
 
 /* CategoriaSchema.methods.toJSONFor = function(){
   return {

@@ -22,7 +22,9 @@
                                     <div id="siteNotice"></div>
                                     <h1 id="firstHeading">{{local.nombre}}</h1>
                                     <div id="bodyContent">
-                                        <img height="100" width="150" src="img/locales/{{local.categorias.subcategoria[0]}}.jpg">
+                                        <a ui-sref="app.local({id: '{{local._id}}'})"> 
+                                                <img height="100" width="150" src="img/locales/{{local.categorias.subcategoria[0]}}.jpg">
+                                        </a>
                                         <p><label>Dir: </label>{{local.direccion}} ({{local.poblacion}},{{local.provincia}})<br>
                                             <label>Telf: </label>{{local.telf}}
                                         </p>
@@ -34,7 +36,7 @@
                 <div class="listado">
                     <ul>
                         <li class="list" ng-repeat="local in $loc.casual | filter:search:strict">
-                            <a href="">
+                            <a ui-sref="app.local({id: '{{local._id}}'})">
                                 <section id="gridcardlocal">
                                     <div id="imagenlocal">
                                         <img src="img/locales/{{local.categorias.subcategoria[0]}}.jpg">

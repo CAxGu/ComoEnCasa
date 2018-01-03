@@ -21,7 +21,8 @@ import './services';
 import './auth';
 import './settings';
 import './editor';
-import './locales'
+import './locales';
+import './local';
 
 
 // Create and bootstrap application
@@ -40,6 +41,7 @@ const requires = [
   'app.settings',
   'app.editor',
   'app.locales',
+  'app.local',
   'toastr'
 ];
 
