@@ -31,6 +31,20 @@ export default class User {
     );
   }
 
+
+  get(validatoken) {
+    return this._$http({
+        url: this._AppConstants.api + '/users/active/' + validatoken,
+        method: 'GET'
+    }).then(
+        (res) => {
+          this.current = res.data.user;
+          return res;
+        }     
+    );
+  }
+
+
   update(fields) {
     return this._$http({
       url:  this._AppConstants.api + '/user',

@@ -25,6 +25,23 @@ function AuthConfig($stateProvider, $httpProvider) {
         return User.ensureAuthIs(false);
       }
     }
+  })
+
+
+  .state('app.active', {
+    url: '/active/:token',
+    controller: 'AuthCtrl as $ctrl',
+    resolve: {
+
+        auth: function(User, $state, $stateParams) {
+
+          return User.get($stateParams.token).then(
+            (User)=> $state.go('app.home').then(window.alert("todo ok")),
+            (err) => $state.go('app.home').then(window.alert("error al activar cuenta"))
+          );
+
+      }
+    }
   });
 
 };

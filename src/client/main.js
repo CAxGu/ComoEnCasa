@@ -44582,6 +44582,20 @@ function AuthConfig($stateProvider, $httpProvider) {
         return User.ensureAuthIs(false);
       }]
     }
+  }).state('app.active', {
+    url: '/active/:token',
+    controller: 'AuthCtrl as $ctrl',
+    resolve: {
+
+      auth: ["User", "$state", "$stateParams", function auth(User, $state, $stateParams) {
+
+        return User.get($stateParams.token).then(function (User) {
+          return $state.go('app.home').then(window.alert("todo ok"));
+        }, function (err) {
+          return $state.go('app.home').then(window.alert("error al activar cuenta"));
+        });
+      }]
+    }
   });
 };
 
@@ -44618,9 +44632,14 @@ var AuthCtrl = function () {
       var _this = this;
 
       this.isSubmitting = true;
-
       this._User.attemptAuth(this.authType, this.formData).then(function (res) {
-        _this._$state.go('app.home');
+        if (res.config.url == "http://localhost:3000/api/users") {
+          _this._User.logout();
+          _this._$state.go('app.home');
+          window.alert("Se ha enviado un email a su bandeja de entrada para activar su cuenta. Verifique su bandeja de entrada");
+        } else {
+          _this._$state.go('app.home');
+        }
       }, function (err) {
         _this.isSubmitting = false;
         _this.errors = err.data.errors;
@@ -46701,16 +46720,29 @@ var User = function () {
       });
     }
   }, {
+    key: 'get',
+    value: function get(validatoken) {
+      var _this2 = this;
+
+      return this._$http({
+        url: this._AppConstants.api + '/users/active/' + validatoken,
+        method: 'GET'
+      }).then(function (res) {
+        _this2.current = res.data.user;
+        return res;
+      });
+    }
+  }, {
     key: 'update',
     value: function update(fields) {
-      var _this2 = this;
+      var _this3 = this;
 
       return this._$http({
         url: this._AppConstants.api + '/user',
         method: 'PUT',
         data: { user: fields }
       }).then(function (res) {
-        _this2.current = res.data.user;
+        _this3.current = res.data.user;
         return res.data.user;
       });
     }
@@ -46724,7 +46756,7 @@ var User = function () {
   }, {
     key: 'verifyAuth',
     value: function verifyAuth() {
-      var _this3 = this;
+      var _this4 = this;
 
       var deferred = this._$q.defer();
 
@@ -46744,10 +46776,10 @@ var User = function () {
             Authorization: 'Token ' + this._JWT.get()
           }
         }).then(function (res) {
-          _this3.current = res.data.user;
+          _this4.current = res.data.user;
           deferred.resolve(true);
         }, function (err) {
-          _this3._JWT.destroy();
+          _this4._JWT.destroy();
           deferred.resolve(false);
         });
       }
@@ -46757,13 +46789,13 @@ var User = function () {
   }, {
     key: 'ensureAuthIs',
     value: function ensureAuthIs(bool) {
-      var _this4 = this;
+      var _this5 = this;
 
       var deferred = this._$q.defer();
 
       this.verifyAuth().then(function (authValid) {
         if (authValid !== bool) {
-          _this4._$state.go('app.home');
+          _this5._$state.go('app.home');
           deferred.resolve(false);
         } else {
           deferred.resolve(true);

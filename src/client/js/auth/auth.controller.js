@@ -12,10 +12,15 @@ class AuthCtrl {
 
   submitForm() {
     this.isSubmitting = true;
-
     this._User.attemptAuth(this.authType, this.formData).then(
       (res) => {
-        this._$state.go('app.home');
+        if(res.config.url=="http://localhost:3000/api/users"){
+          this._User.logout();
+          this._$state.go('app.home');
+          window.alert("Se ha enviado un email a su bandeja de entrada para activar su cuenta. Verifique su bandeja de entrada");
+        }else{
+          this._$state.go('app.home');
+        }    
       },
       (err) => {
         this.isSubmitting = false;

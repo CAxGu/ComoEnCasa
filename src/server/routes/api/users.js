@@ -4,6 +4,15 @@ var passport = require('passport');
 var User = mongoose.model('User');
 var auth = require('../auth');
 
+var nodemailer = require('nodemailer');
+var transporter = nodemailer.createTransport({
+  service: 'gmail',
+  auth: {
+    user: process.env.MAIL_TOKEN ,
+    pass: process.env.PASS_MAILTOKEN
+  }
+});
+
 router.get('/user', auth.required, function(req, res, next){
   User.findById(req.payload.id).then(function(user){
     if(!user){ return res.sendStatus(401); }
@@ -11,6 +20,24 @@ router.get('/user', auth.required, function(req, res, next){
     return res.json({user: user.toAuthJSON()});
   }).catch(next);
 });
+
+
+router.get('/users/active/:token', function(req, res, next) {
+
+  User.update({salt:req.params.token},{$set:{"activo":1}}).then(function(user){
+ 
+    User.findOne({salt:req.params.token}).then(function(user1){
+
+      if(!user1){ return res.sendStatus(401); }
+      
+      return res.json({user: user1.toAuthJSON()});
+    });
+
+    //return res.json({user: User.toAuthJSON()});
+  }).catch(next);
+});
+
+
 
 router.put('/user', auth.required, function(req, res, next){
   User.findById(req.payload.id).then(function(user){
@@ -52,8 +79,12 @@ router.post('/users/login', function(req, res, next){
     if(err){ return next(err); }
 
     if(user){
-      user.token = user.generateJWT();
-      return res.json({user: user.toAuthJSON()});
+      if(user.activo==1){
+        user.token = user.generateJWT();
+        return res.json({user: user.toAuthJSON()});
+      }else{
+        return res.status(422).json({errors: {activate: "check your imbox email to activate the account"}});
+      }
     } else {
       return res.status(422).json(info);
     }
@@ -66,10 +97,27 @@ router.post('/users', function(req, res, next){
   user.username = req.body.user.username;
   user.email = req.body.user.email;
   user.setPassword(req.body.user.password);
+  user.activo = 0;
 
   user.save().then(function(){
     return res.json({user: user.toAuthJSON()});
   }).catch(next);
+
+  transporter.sendMail(mailOptions = {
+    from: 'nipontourpruebas@gmail.com',
+    to: user.email,
+    subject: 'Activacion de cuenta ComoEnCasa',
+    html: '<h1>¡Bienvenid@ a ComoEnCasa!</h1><p>Pincha en link siguiente para activar tu cuenta!: <br>http://localhost:4000/#!/active/'+user.salt+'</p>'
+  }
+  , function(error, info){
+    if (error) {
+      console.log(error);
+    } else {
+      console.log('Email sent: ' + info.response);
+    }
+  });
+
+
 });
 
 module.exports = router;
