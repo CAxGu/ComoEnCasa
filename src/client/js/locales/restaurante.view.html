@@ -18,13 +18,13 @@
                               on-click="map.showInfoWindow(event, 'infow{{local.nombre}}{{$index}}')" ng-repeat="local in $loc.restaurantes | filter:search">
                             </marker>
                             <info-window id="infow{{local.nombre}}{{$index}}" max-width="200" ng-repeat="local in $loc.restaurantes" position="current-location">
-                              <div>
+                                <div>
                                 <div id="siteNotice"></div>
                                 <h1 id="firstHeading">{{local.nombre}}</h1>
                                 <div id="bodyContent">
-                                        <a ui-sref="app.local({id: '{{local._id}}'})"> 
+                                    <a ui-sref="app.local({id: '{{local._id}}'})"> 
                                                 <img height="100" width="150" src="img/locales/{{local.categorias.subcategoria[0]}}.jpg">
-                                        </a>
+                                    </a>
                                     <p><label>Dir: </label>{{local.direccion}} ({{local.poblacion}},{{local.provincia}})<br>
                                         <label>Telf: </label>{{local.telf}}
                                     </p>
@@ -37,7 +37,6 @@
                     <ul>
                         <li class="list" ng-repeat="local in $loc.restaurantes | filter:search:strict">
                             <a ui-sref="app.local({id: '{{local._id}}'})">
-                                {{local._id}}
                                 <section id="gridcardlocal">
                                     <div id="imagenlocal">
                                         <img src="img/locales/{{local.categorias.subcategoria[0]}}.jpg">

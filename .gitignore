@@ -80,6 +80,3 @@ node_modules
 
 # Ignore backups
 __*
-
-# Ignore .env 
-.env

@@ -11,11 +11,9 @@ var http = require('http'),
 
 var mongoLab = process.env.MONGOLAB_CRED;
 var mongoLocal = process.env.MONGOLOCAL;
-console.log(mongoLab);
-console.log(`${mongoLab}`);
+
 var isProduction = process.env.NODE_ENV === 'production';
 /* var isProduction; */
-console.log(process.env)
 // Create global app object
 var app = express();
 
@@ -36,9 +34,9 @@ if (!isProduction) {
 }
 
 if(isProduction){
-    mongoose.connect(process.env.MONGOLOCAL);
+   // mongoose.connect(process.env.MONGOLOCAL);
 } else {
-    mongoose.connect('mongodb://localhost:27017/locals');
+    mongoose.connect('mongodb://localhost:27017/proyectoangnode');
     mongoose.set('debug', true);
 }
 

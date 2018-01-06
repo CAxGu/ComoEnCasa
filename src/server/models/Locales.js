@@ -12,12 +12,12 @@ var LocalesSchema = new mongoose.Schema({
     direccion: String,
     poblacion: String,
     provincia: String,
-    latitud: Number,
-    longitud: Number,
+    latitud: String,
+    longitud: String,
     foto: String,
     categorias:{
-        categoria:[String],
-        subcategoria:[String]
+        categoria:String,
+        subcategoria: Array
     }
 
 },{timestamps: true});

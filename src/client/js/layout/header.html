@@ -1,16 +1,32 @@
-<nav id="navbar"> <!-- ng-controller="menuCtrl"> -->
-  <ul>
-    <li><a class="active" href="/">HOME</a></li>
-    <li><a href="#!/#locals">LOCALS</a></li>
-    <li><a href="#!/#about">ABOUT US</a></li>
-    <li><a href="#!/contact">CONTACT</a></li>
-        <!-- LogProf -->
-   <!--  <li id="LogProf">
-        <a id="acceder" ng-show="accederV" href="" ng-click="open()" >ACCESS</a>
-        <a id='profile' ng-show="profileV" href='#/user/profile'><img ng-show="profileV" id='menuImg' class='icon rounded' src='{{avatar}}'/>{{nombre}}</a>
-    </li>    
-    <li><a id='logout' ng-show="logoutV" ng-click='logout()' >LOG OUT</a></li> -->
-  </ul>
+<nav id="navbar">
+  <div>
+    <!-- loged out users -->
+    <ul show-authed="false">
+      <li><a ui-sref-active="active" ui-sref="app.home">HOME</a></li>
+      <li><a href="#!/#locals">LOCALS</a></li>
+      <li><a href="#!/#about">ABOUT US</a></li>
+      <li><a ui-sref-active="active" ui-sref="app.contact">CONTACT</a></li>
+      <li><a ui-sref-active="active" ui-sref="app.login">SIGN IN</a></li>
+      <li><a ui-sref-active="active" ui-sref="app.register">SIGN UP</a></li>
+      <!-- <li><a ui-sref-active="active" ui-sref="app.loginmodal">MODAL</a></li> -->
+ <!--      <li><a href="#!/modal" data-toggle="modal" data-target="#myModal">MODAL</a></li> -->
+      <li><a ui-sref-active="active" ng-click="open()">MODAL</a></li>
+      <!-- <button type="button" class="btn btn-info btn-lg" data-toggle="modal" data-target="#myModal">Open Modal</button> -->
+     
+    </ul>
+
+    <!-- loged in users -->
+    <ul show-authed="true">
+      <li><a ui-sref-active="active" ui-sref="app.home">HOME</a></li>
+      <li><a href="#!/#locals">LOCALS</a></li>
+      <li><a href="#!/#about">ABOUT US</a></li>
+      <li><a ui-sref-active="active" ui-sref="app.contact">CONTACT</a></li>
+      <li><a
+        ui-sref-active="active"
+        ui-sref="app.profile.main({ username: $ctrl.currentUser.username})">
+        <img width="35px" height="35px" ng-src="{{$ctrl.currentUser.image}}"><img>{{ $ctrl.currentUser.username }}     
+      </a></li>
+      <li><a ng-click="$ctrl.logout()">LOG OUT</a></li>
+    </ul>
+  </div>
 </nav>
-  <!-- alertbanner -->
-<!-- <div id="alertbanner" ng-show="bannerV"><a ng-class='bannerClass'>{{bannerText}}</a></div> -->
