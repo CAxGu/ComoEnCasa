@@ -28,6 +28,8 @@ app.use(require('method-override')());
 app.use(express.static(__dirname + '/public'));
 
 app.use(session({ secret: 'conduit', cookie: { maxAge: 60000 }, resave: false, saveUninitialized: false  }));
+app.use(passport.initialize());
+app.use(passport.session());
 
 if (!isProduction) {
   app.use(errorhandler());

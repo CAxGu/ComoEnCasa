@@ -162,5 +162,38 @@ router.post('/users/newpass', function(req, res, next){
   }).catch(next);
 });
 
+//mala praxis
+router.post('/users/social', function(req, res, next){
+  let memorystore = req.sessionStore;
+  let sessions = memorystore.sessions;
+  let sessionUser;
+  for(var key in sessions){
+    sessionUser = (JSON.parse(sessions[key]).passport.user);
+  }
+  console.log('--------------------------------------------------------------------');
+  console.log(sessionUser);
+  console.log('--------------------------------------------------------------------');
+    var user = new User();
+    user._id = sessionUser._id;
+    user.image = sessionUser.image;
+    user.email = sessionUser.email;
+    user.username = sessionUser.username;
+    user.followig = sessionUser.followig;
+    user.favorites = sessionUser.favorites;
+
+    if(user){
+      user.token = user.generateJWT();
+      return res.json({user: user.toAuthJSON()});
+    } else {
+      return res.status(422).json('fail');
+    }
+})
+
+//twitter
+router.get('/twitter', passport.authenticate('twitter'));
+
+router.get('/twitter/callback',  passport.authenticate('twitter', { successRedirect: 'http://localhost:4000/#!/social', failureRedirect: 'http://localhost:4000/#!/login'}));
+
+
 
 module.exports = router;

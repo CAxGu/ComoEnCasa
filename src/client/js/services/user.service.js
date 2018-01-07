@@ -27,11 +27,14 @@ export default class User {
       case 'newpass':
         route = '/newpass';
         break;
+      case 'social':
+        route = '/social';
+        break;
       default:
         route = '';
         break;
     }
-
+ console.log(route)
   //  let route = (type === 'login') ? '/login' : '';
     return this._$http({
       url: this._AppConstants.api + '/users' + route,

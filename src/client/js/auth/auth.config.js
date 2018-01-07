@@ -27,7 +27,6 @@ function AuthConfig($stateProvider, $httpProvider) {
     }
   })
 
-
   .state('app.active', {
     url: '/active/:token',
     controller: 'AuthCtrl as $ctrl',
@@ -42,8 +41,6 @@ function AuthConfig($stateProvider, $httpProvider) {
     }
   })
 
-
-
   .state('app.recover', {
     url: '/recover',
     controller: 'AuthCtrl as $ctrl',
@@ -56,18 +53,26 @@ function AuthConfig($stateProvider, $httpProvider) {
     }
   })
 
-
-
   .state('app.newpass', {
     url: '/newpass/:recuperapwd',
     controller: 'AuthCtrl as $ctrl',
     templateUrl: 'auth/newpass.view.html',
     title: 'Change password',
     resolve: {     
-               auth: function(User, $state, $stateParams) {
+              auth: function(User, $state, $stateParams) {
                 return User.ensureAuthIs(false);
             }
           }
+
+  })
+  .state('app.social',{
+    url: '/social',
+    controller: 'SocialCtrl as $crtl',
+    resolve: {
+      auth: function(User) {
+        return User.ensureAuthIs(false);
+      }
+    }
   });
 
 

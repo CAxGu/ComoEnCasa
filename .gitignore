@@ -39,6 +39,7 @@ src/main.js
 build/*
 dist/*
 src/js/config/app.templates.js
+.env
 
 # Logs
 logs
