@@ -59,13 +59,16 @@ passport.use(new FacebookStrategy({
   profileFields: ['id', 'displayName', 'name', 'email', 'link', 'locale', 'photos'],
   //passReqToCallback: true
 }, function(req, accessToken, refreshToken, profile, done) {
+
   User.findOne({ email: profile.id }).then(function(user){
     if(user){
       console.log('Ya estas registrado '+ profile.id);
       return done(null, user);
     }else{
       let usert = new User();
-      usert.username = profile.name.givenName + profile.name.familyName;
+      let uname=(profile.name.givenName).toLowerCase(); 
+            
+      usert.username = uname.replace(" ","");
       usert.email    = profile.id;
       usert.image    = profile.photos[0].value;
 
