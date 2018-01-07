@@ -18,7 +18,7 @@ class LocalesCtrl {
             this.fastfood = [];
             
             locales.forEach(element => {
-              switch (element.categorias.categoria[0]){
+              switch (element.categorias.categoria){
                 case 'restaurante':
                   this.restaurantes.push(element);
                 break;

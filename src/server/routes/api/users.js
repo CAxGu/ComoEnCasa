@@ -170,9 +170,6 @@ router.post('/users/social', function(req, res, next){
   for(var key in sessions){
     sessionUser = (JSON.parse(sessions[key]).passport.user);
   }
-  console.log('--------------------------------------------------------------------');
-  console.log(sessionUser);
-  console.log('--------------------------------------------------------------------');
     var user = new User();
     user._id = sessionUser._id;
     user.image = sessionUser.image;
@@ -194,6 +191,8 @@ router.get('/twitter', passport.authenticate('twitter'));
 
 router.get('/twitter/callback',  passport.authenticate('twitter', { successRedirect: 'http://localhost:4000/#!/social', failureRedirect: 'http://localhost:4000/#!/login'}));
 
+router.get('/facebook', passport.authenticate('facebook'));
 
+router.get('/facebook/callback', passport.authenticate('facebook', {successRedirect: 'http://localhost:4000/#!/social', failureRedirect: 'http://localhost:4000/#!/login'}))
 
 module.exports = router;
