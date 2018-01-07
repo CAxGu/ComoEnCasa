@@ -14,7 +14,25 @@ export default class User {
 
 
   attemptAuth(type, credentials) {
-    let route = (type === 'login') ? '/login' : '';
+
+    let route = '';
+
+    switch (type){
+      case 'login':
+        route = '/login';
+        break;
+      case 'recover':
+        route = '/recover';
+        break;
+      case 'newpass':
+        route = '/newpass';
+        break;
+      default:
+        route = '';
+        break;
+    }
+
+  //  let route = (type === 'login') ? '/login' : '';
     return this._$http({
       url: this._AppConstants.api + '/users' + route,
       method: 'POST',
@@ -38,6 +56,7 @@ export default class User {
         method: 'GET'
     }).then(
         (res) => {
+          this._JWT.save(res.data.user.token);
           this.current = res.data.user;
           return res;
         }     

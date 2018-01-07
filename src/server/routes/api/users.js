@@ -21,19 +21,16 @@ router.get('/user', auth.required, function(req, res, next){
   }).catch(next);
 });
 
-
 router.get('/users/active/:token', function(req, res, next) {
 
-  User.update({salt:req.params.token},{$set:{"activo":1}}).then(function(user){
- 
-    User.findOne({salt:req.params.token}).then(function(user1){
-
-      if(!user1){ return res.sendStatus(401); }
-      
-      return res.json({user: user1.toAuthJSON()});
-    });
-
-    //return res.json({user: User.toAuthJSON()});
+  User.findOne({salt:req.params.token}).then(function(user){
+    if(!user){ return res.sendStatus(401); }
+    
+    if(typeof user.activo !== 'undefined'){
+      user.activo=1;
+    }
+    user.save();
+    return res.json({user: user.toAuthJSON()});
   }).catch(next);
 });
 
@@ -104,7 +101,7 @@ router.post('/users', function(req, res, next){
   }).catch(next);
 
   transporter.sendMail(mailOptions = {
-    from: 'nipontourpruebas@gmail.com',
+    from: process.env.MAIL_TOKEN ,
     to: user.email,
     subject: 'Activacion de cuenta ComoEnCasa',
     html: '<h1>¡Bienvenid@ a ComoEnCasa!</h1><p>Pincha en link siguiente para activar tu cuenta!: <br>http://localhost:4000/#!/active/'+user.salt+'</p>'
@@ -119,5 +116,51 @@ router.post('/users', function(req, res, next){
 
 
 });
+
+
+router.post('/users/recover', function(req, res, next){
+
+  User.findOne({email:req.body.user.email}).then(function(user){
+    if(!user){ return res.sendStatus(401);}
+
+    let tokenpassword= user.tokenrecoverpassword();
+
+    user.recuperapwd = tokenpassword;
+    user.save().then(
+      transporter.sendMail(mailOptions = {
+          from: process.env.MAIL_TOKEN ,
+          to: user.email,
+          subject: 'Recuperar contraseña',
+          html: '<h1>Recuperar contraseña de ComoEnCasa</h1><p>Hemos recibido una petición para cambiar tu contraseña. Si no has solicitado el cambio ignora completamente este correo, sino, dale link al siguiente enlace para restablecerla: <br> http://localhost:4000/#!/newpass/'+user.recuperapwd+'</p>'
+        }
+        , function(error, info){
+          if (error) {
+            console.log(error);
+          } else {
+            console.log('Email sent: ' + info.response);
+          }
+        })
+    );
+  
+    return res.json({user: user.toAuthJSON()});
+  }).catch(next);
+});
+
+
+router.post('/users/newpass', function(req, res, next){
+
+  User.findOne({recuperapwd:req.body.user.respwd}).then(function(user){
+    if(!user){ return res.sendStatus(401);}
+
+    if(typeof req.body.user.password !== 'undefined'){
+      user.setPassword(req.body.user.password);
+      user.recuperapwd = user.tokenrecoverpassword();
+    }
+    user.save();
+
+  return res.json({user: user.toAuthJSON()});
+  }).catch(next);
+});
+
 
 module.exports = router;

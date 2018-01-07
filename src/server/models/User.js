@@ -13,6 +13,7 @@ var UserSchema = new mongoose.Schema({
   // following: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
 
   activo: Number,
+  recuperapwd: String,
 
   hash: String,
   salt: String
@@ -24,6 +25,12 @@ UserSchema.methods.validPassword = function(password) {
   var hash = crypto.pbkdf2Sync(password, this.salt, 10000, 512, 'sha512').toString('hex');
   return this.hash === hash;
 };
+
+UserSchema.methods.tokenrecoverpassword = function(){
+  let tokenrecoverpassword = crypto.randomBytes(16).toString('hex');
+  return tokenrecoverpassword;
+};
+
 
 UserSchema.methods.setPassword = function(password){
   this.salt = crypto.randomBytes(16).toString('hex');
@@ -56,7 +63,7 @@ UserSchema.methods.toProfileJSONFor = function(user){
   return {
     username: this.username,
     bio: this.bio,
-    image: this.image || 'https://image.freepik.com/iconos-gratis/restaurante-de-la-cuchilleria-simbolo-circular-de-una-cuchara-y-un-tenedor-en-un-circulo_318-61086.jpg'
+    image: this.image || 'https://static.productionready.io/images/smiley-cyrus.jpg'
   /*   following: user ? user.isFollowing(this._id) : false */
   };
 };

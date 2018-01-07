@@ -41,6 +41,11 @@
                 ng-model="$ctrl.formData.password" />
             </fieldset>
 
+            <a ui-sref="app.recover"
+            ng-show="$ctrl.authType === 'login'">
+            Forgot your password?
+            </a>
+            <br>
             <button class="btn btn-lg btn-primary pull-xs-right"
               type="submit"
               ng-bind="::$ctrl.title">

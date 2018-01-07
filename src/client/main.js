@@ -44588,12 +44588,31 @@ function AuthConfig($stateProvider, $httpProvider) {
     resolve: {
 
       auth: ["User", "$state", "$stateParams", function auth(User, $state, $stateParams) {
-
         return User.get($stateParams.token).then(function (User) {
-          return $state.go('app.home').then(window.alert("todo ok"));
+          $state.go('app.home');return User.ensureAuthIs(false);
         }, function (err) {
-          return $state.go('app.home').then(window.alert("error al activar cuenta"));
+          $state.go('app.home');
         });
+      }]
+    }
+  }).state('app.recover', {
+    url: '/recover',
+    controller: 'AuthCtrl as $ctrl',
+    templateUrl: 'auth/recover.view.html',
+    title: 'Recover password',
+    resolve: {
+      auth: ["User", function auth(User) {
+        return User.ensureAuthIs(false);
+      }]
+    }
+  }).state('app.newpass', {
+    url: '/newpass/:recuperapwd',
+    controller: 'AuthCtrl as $ctrl',
+    templateUrl: 'auth/newpass.view.html',
+    title: 'Change password',
+    resolve: {
+      auth: ["User", "$state", "$stateParams", function auth(User, $state, $stateParams) {
+        return User.ensureAuthIs(false);
       }]
     }
   });
@@ -44613,8 +44632,8 @@ var _createClass = function () { function defineProperties(target, props) { for 
 function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
 
 var AuthCtrl = function () {
-  AuthCtrl.$inject = ["User", "$state"];
-  function AuthCtrl(User, $state) {
+  AuthCtrl.$inject = ["User", "$state", "toastr"];
+  function AuthCtrl(User, $state, toastr) {
     'ngInject';
 
     _classCallCheck(this, AuthCtrl);
@@ -44624,6 +44643,7 @@ var AuthCtrl = function () {
 
     this.title = $state.current.title;
     this.authType = $state.current.name.replace('app.', '');
+    this._toastr = toastr;
   }
 
   _createClass(AuthCtrl, [{
@@ -44631,15 +44651,54 @@ var AuthCtrl = function () {
     value: function submitForm() {
       var _this = this;
 
+      this.formData.respwd = this._$state.params.recuperapwd;
       this.isSubmitting = true;
       this._User.attemptAuth(this.authType, this.formData).then(function (res) {
-        if (res.config.url == "http://localhost:3000/api/users") {
-          _this._User.logout();
-          _this._$state.go('app.home');
-          window.alert("Se ha enviado un email a su bandeja de entrada para activar su cuenta. Verifique su bandeja de entrada");
-        } else {
-          _this._$state.go('app.home');
+
+        switch (res.config.url) {
+          case 'http://localhost:3000/api/users':
+            _this._User.logout();
+            _this._$state.go('app.home');
+            setTimeout(function () {
+              _this._toastr.success('Revise su bandeja de entrada para activar su cuenta', 'activación');
+            }, 1000);
+            //window.alert("Revise su bandeja de entrada para activar su cuenta.");
+            break;
+          case 'http://localhost:3000/api/users/recover':
+            _this._User.logout();
+            _this._$state.go('app.home');
+            setTimeout(function () {
+              _this._toastr.success('"Revise su bandeja de entrada para recuperar su contraseña', 'contraseña');
+            }, 800);
+            //window.alert("Revise su bandeja de entrada para recuperar su contraseña.");
+            break;
+          case 'http://localhost:3000/api/users/newpass':
+            _this._User.logout();
+            _this._$state.go('app.home');
+            setTimeout(function () {
+              _this._toastr.success('Contraseña actualizada', 'actualizada');
+            }, 800);
+            //window.alert("Contraseña actualizada.");
+            break;
+          default:
+            _this._$state.go('app.home');
+            break;
         }
+        /*  if(res.config.url=="http://localhost:3000/api/users"){
+           this._User.logout();
+           this._$state.go('app.home');
+           window.alert("Revise su bandeja de entrada para activar su cuenta.");
+         }else if(res.config.url=="http://localhost:3000/api/users/recover"){
+           this._User.logout();
+           this._$state.go('app.home');
+           window.alert("Revise su bandeja de entrada para recuperar su contraseña.");
+         }else if(res.config.url=="http://localhost:3000/api/users/newpass"){
+           this._User.logout();
+           this._$state.go('app.home');
+           window.alert("Contraseña actualizada.");
+         }else{
+           this._$state.go('app.home');
+         }   */
       }, function (err) {
         _this.isSubmitting = false;
         _this.errors = err.data.errors;
@@ -45214,7 +45273,9 @@ angular.module("templates", []).run(["$templateCache", function ($templateCache)
   $templateCache.put("article/article-actions.html", "<article-meta article=\"$ctrl.article\">\n\n  <span ng-show=\"$ctrl.canModify\">\n    <a class=\"btn btn-sm btn-outline-secondary\"\n      ui-sref=\"app.editor({ slug: $ctrl.article.slug })\">\n      <i class=\"ion-edit\"></i> Edit Article\n    </a>\n\n    <button class=\"btn btn-sm btn-outline-danger\"\n      ng-class=\"{disabled: $ctrl.isDeleting}\"\n      ng-click=\"$ctrl.deleteArticle()\">\n      <i class=\"ion-trash-a\"></i> Delete Article\n    </button>\n  </span>\n\n  <span ng-hide=\"$ctrl.canModify\">\n    <follow-btn user=\"$ctrl.article.author\"></follow-btn>\n    <favorite-btn article=\"$ctrl.article\">\n      {{ $ctrl.article.favorited ? \'Unfavorite\' : \'Favorite\' }} Article <span class=\"counter\">({{$ctrl.article.favoritesCount}})</span>\n    </favorite-btn>\n  </span>\n\n</article-meta>\n");
   $templateCache.put("article/article.html", "<div class=\"article-page\">\n\n  <!-- Banner for article title, action buttons -->\n  <div class=\"banner\">\n    <div class=\"container\">\n\n      <h1 ng-bind=\"::$ctrl.article.title\"></h1>\n\n      <div class=\"article-meta\">\n        <!-- Show author info + favorite & follow buttons -->\n        <article-actions article=\"$ctrl.article\"></article-actions>\n\n      </div>\n\n    </div>\n  </div>\n\n\n\n  <!-- Main view. Contains article html and comments -->\n  <div class=\"container page\">\n\n    <!-- Article\'s HTML & tags rendered here -->\n    <div class=\"row article-content\">\n      <div class=\"col-xs-12\">\n\n        <div ng-bind-html=\"::$ctrl.article.body\"></div>\n\n        <ul class=\"tag-list\">\n          <li class=\"tag-default tag-pill tag-outline\"\n            ng-repeat=\"tag in ::$ctrl.article.tagList\">\n            {{ tag }}\n          </li>\n        </ul>\n\n      </div>\n    </div>\n\n    <hr />\n\n    <div class=\"article-actions\">\n\n      <!-- Show author info + favorite & follow buttons -->\n      <article-actions article=\"$ctrl.article\"></article-actions>\n\n    </div>\n\n    <!-- Comments section -->\n    <div class=\"row\">\n      <div class=\"col-xs-12 col-md-8 offset-md-2\">\n\n        <div show-authed=\"true\">\n          <list-errors from=\"$crl.commentForm.errors\"></list-errors>\n          <form class=\"card comment-form\" ng-submit=\"$ctrl.addComment()\">\n            <fieldset ng-disabled=\"$ctrl.commentForm.isSubmitting\">\n              <div class=\"card-block\">\n                <textarea class=\"form-control\"\n                  placeholder=\"Write a comment...\"\n                  rows=\"3\"\n                  ng-model=\"$ctrl.commentForm.body\"></textarea>\n              </div>\n              <div class=\"card-footer\">\n                <img ng-src=\"{{::$ctrl.currentUser.image}}\" class=\"comment-author-img\" />\n                <button class=\"btn btn-sm btn-primary\" type=\"submit\">\n                 Post Comment\n                </button>\n              </div>\n            </fieldset>\n          </form>\n        </div>\n\n        <div show-authed=\"false\">\n          <a ui-sref=\"app.login\">Sign in</a> or <a ui-sref=\"app.register\">sign up</a> to add comments on this article.\n        </div>\n\n        <comment ng-repeat=\"cmt in $ctrl.comments\"\n          data=\"cmt\"\n          delete-cb=\"$ctrl.deleteComment(cmt.id, $index)\">\n        </comment>\n\n\n      </div>\n    </div>\n\n  </div>\n\n\n\n</div>\n");
   $templateCache.put("article/comment.html", "<div class=\"card\">\n  <div class=\"card-block\">\n    <p class=\"card-text\" ng-bind=\"::$ctrl.data.body\"></p>\n  </div>\n  <div class=\"card-footer\">\n    <a class=\"comment-author\" ui-sref=\"app.profile.main({ username: $ctrl.data.author.username })\">\n      <img ng-src=\"{{::$ctrl.data.author.image}}\" class=\"comment-author-img\" />\n    </a>\n    &nbsp;\n    <a class=\"comment-author\" ui-sref=\"app.profile.main({ username: $ctrl.data.author.username })\" ng-bind=\"::$ctrl.data.author.username\">\n    </a>\n    <span class=\"date-posted\"\n      ng-bind=\"::$ctrl.data.createdAt | date: \'longDate\'\">\n    </span>\n    <span class=\"mod-options\" ng-show=\"$ctrl.canModify\">\n      <i class=\"ion-trash-a\" ng-click=\"$ctrl.deleteCb()\"></i>\n    </span>\n  </div>\n</div>\n");
-  $templateCache.put("auth/auth.html", "<div class=\"auth-page\">\n  <div class=\"container page\">\n    <div class=\"row\">\n\n      <div class=\"col-md-6 offset-md-3 col-xs-12\">\n        <h1 class=\"text-xs-center\" ng-bind=\"::$ctrl.title\"></h1>\n        <p class=\"text-xs-center\">\n          <a ui-sref=\"app.login\"\n            ng-show=\"$ctrl.authType === \'register\'\">\n            Have an account?\n          </a>\n          <a ui-sref=\"app.register\"\n            ng-show=\"$ctrl.authType === \'login\'\">\n            Need an account?\n          </a>\n        </p>\n\n        <list-errors errors=\"$ctrl.errors\"></list-errors>\n\n        <form ng-submit=\"$ctrl.submitForm()\">\n          <fieldset ng-disabled=\"$ctrl.isSubmitting\">\n\n            <fieldset class=\"form-group\" ng-show=\"$ctrl.authType === \'register\'\">\n              <input class=\"form-control form-control-lg\"\n                type=\"text\"\n                placeholder=\"Username\"\n                ng-model=\"$ctrl.formData.username\" />\n            </fieldset>\n\n            <fieldset class=\"form-group\">\n              <input class=\"form-control form-control-lg\"\n                type=\"email\"\n                placeholder=\"Email\"\n                ng-model=\"$ctrl.formData.email\" />\n            </fieldset>\n\n            <fieldset class=\"form-group\">\n              <input class=\"form-control form-control-lg\"\n                type=\"password\"\n                placeholder=\"Password\"\n                ng-model=\"$ctrl.formData.password\" />\n            </fieldset>\n\n            <button class=\"btn btn-lg btn-primary pull-xs-right\"\n              type=\"submit\"\n              ng-bind=\"::$ctrl.title\">\n            </button>\n\n          </fieldset>\n        </form>\n      </div>\n\n    </div>\n  </div>\n</div>\n");
+  $templateCache.put("auth/auth.html", "<div class=\"auth-page\">\n  <div class=\"container page\">\n    <div class=\"row\">\n\n      <div class=\"col-md-6 offset-md-3 col-xs-12\">\n        <h1 class=\"text-xs-center\" ng-bind=\"::$ctrl.title\"></h1>\n        <p class=\"text-xs-center\">\n          <a ui-sref=\"app.login\"\n            ng-show=\"$ctrl.authType === \'register\'\">\n            Have an account?\n          </a>\n          <a ui-sref=\"app.register\"\n            ng-show=\"$ctrl.authType === \'login\'\">\n            Need an account?\n          </a>\n        </p>\n\n        <list-errors errors=\"$ctrl.errors\"></list-errors>\n\n        <form ng-submit=\"$ctrl.submitForm()\">\n          <fieldset ng-disabled=\"$ctrl.isSubmitting\">\n\n            <fieldset class=\"form-group\" ng-show=\"$ctrl.authType === \'register\'\">\n              <input class=\"form-control form-control-lg\"\n                type=\"text\"\n                placeholder=\"Username\"\n                ng-model=\"$ctrl.formData.username\" />\n            </fieldset>\n\n            <fieldset class=\"form-group\">\n              <input class=\"form-control form-control-lg\"\n                type=\"email\"\n                placeholder=\"Email\"\n                ng-model=\"$ctrl.formData.email\" />\n            </fieldset>\n\n            <fieldset class=\"form-group\">\n              <input class=\"form-control form-control-lg\"\n                type=\"password\"\n                placeholder=\"Password\"\n                ng-model=\"$ctrl.formData.password\" />\n            </fieldset>\n\n            <a ui-sref=\"app.recover\"\n            ng-show=\"$ctrl.authType === \'login\'\">\n            Forgot your password?\n            </a>\n            <br>\n            <button class=\"btn btn-lg btn-primary pull-xs-right\"\n              type=\"submit\"\n              ng-bind=\"::$ctrl.title\">\n            </button>\n\n          </fieldset>\n        </form>\n      </div>\n\n    </div>\n  </div>\n</div>\n");
+  $templateCache.put("auth/newpass.view.html", "<div class=\"auth-page\">\n    <div class=\"container page\">\n      <div class=\"row\">\n  \n        <div class=\"col-md-6 offset-md-3 col-xs-12\">\n          <h1 class=\"text-xs-center\" ng-bind=\"::$ctrl.title\"></h1>\n  \n          <list-errors errors=\"$ctrl.errors\"></list-errors>\n  \n          <form ng-submit=\"$ctrl.submitForm()\">\n            <fieldset ng-disabled=\"$ctrl.isSubmitting\">\n\n              <fieldset class=\"form-group\">\n                <input class=\"form-control form-control-lg\"\n                  type=\"password\"\n                  placeholder=\"Password\"\n                  ng-model=\"$ctrl.formData.password\" />\n              </fieldset>\n              \n              <button class=\"btn btn-lg btn-primary pull-xs-right\"\n                type=\"submit\"\n                ng-bind=\"::$ctrl.title\">\n              </button>\n  \n            </fieldset>\n          </form>\n        </div>\n  \n      </div>\n    </div>\n  </div>\n  ");
+  $templateCache.put("auth/recover.view.html", "<div class=\"auth-page\">\n    <div class=\"container page\">\n      <div class=\"row\">\n  \n        <div class=\"col-md-6 offset-md-3 col-xs-12\">\n          <h1 class=\"text-xs-center\" ng-bind=\"::$ctrl.title\"></h1>\n  \n          <list-errors errors=\"$ctrl.errors\"></list-errors>\n  \n          <form ng-submit=\"$ctrl.submitForm()\">\n            <fieldset ng-disabled=\"$ctrl.isSubmitting\">\n\n              <fieldset class=\"form-group\">\n                <input class=\"form-control form-control-lg\"\n                  type=\"email\"\n                  placeholder=\"Email\"\n                  ng-model=\"$ctrl.formData.email\" />\n              </fieldset>\n\n              <button class=\"btn btn-lg btn-primary pull-xs-right\"\n                type=\"submit\"\n                ng-bind=\"::$ctrl.title\">\n              </button>\n  \n            </fieldset>\n          </form>\n        </div>\n  \n      </div>\n    </div>\n  </div>\n  ");
   $templateCache.put("components/list-errors.html", "<ul class=\"error-messages\" ng-show=\"$ctrl.errors\">\n  <div ng-repeat=\"(field, errors) in $ctrl.errors\">\n    <li ng-repeat=\"error in errors\">\n      {{field}} {{error}}\n    </li>\n  </div>\n</ul>\n");
   $templateCache.put("contact/contact.view.html", "<script src=\"js/contact/bootstrap-button.js\"></script>\n<link rel=\"stylesheet\" href=\"style/contact_style.css\">\n<section id=\"sections\" class=\"sections\">\n    <!-- information or sections inside the section with grey background -->\n    <section id=\"content\" class=\"content\" >\n        <!-- Content of contact section -->\n    \n    <form id=\"contact_form\" name=\"contact_form\" class=\"form-contact\">\n        <div class=\"sectionHead\">\n                <h3>Contact With Us</h3>\n        </div>\n        <div class=\"control-group\">\n            <input required ng-model=\"contact.inputName\" type=\"text\" id=\"inputName\" name=\"inputName\" placeholder=\"Nombre\" class=\"input-block-level inputtext\" dir=\"auto\" maxlength=\"100\">\n            <span class=\"text-danger\" ng-show=\"contact_form.inputName.$error.required && (contact_form.inputName.$dirty || contact_form.inputName.$touched)\">El campo es obligatorio</span>\n        </div>\n        <div class=\"control-group\">\n            <input required ng-model=\"contact.inputEmail\" type=\"email\" id=\"inputEmail\" name=\"inputEmail\" placeholder=\"Email *\" class=\"input-block-level inputtext\" maxlength=\"100\" ng-pattern=\"/^[a-z0-9!#$%&\'*+/=?^_`{|}~.-]+@[a-z0-9-]+(\\.[a-z0-9-]+)*$/i\">\n            <span class=\"text-danger\" ng-show=\"contact_form.inputEmail.$error.required && (contact_form.inputEmail.$dirty || contact_form.inputEmail.$touched)\">El campo es obligatorio</span>\n            <span class=\"text-danger\" ng-show=\"contact_form.inputEmail.$error.email\"><br>Email no valido</span>\n        </div>\n        <div class=\"control-group\">\n            <label class=\"combolabel\" for=\"sel1\">Tema de Consulta: </label>\n            <select ng-model=\"contact.inputSubject\" class=\"form-control combobox\" id=\"inputSubject\" name=\"inputSubject\" title=\"Choose subject\">\n                <option class=\"optioncombo\" value=\"\">- Por favor, seleccione un tema de consulta -</option>\n                <option class=\"optioncombo\" value=\"servicio\">Info relativa a algun servicio</option>\n                <option class=\"optioncombo\" value=\"dpto\">Contacta con nuestro dpto de programación</option>\n                <option class=\"optioncombo\" value=\"trabaja\">Trabaja con nosotros</option>\n                <option class=\"optioncombo\" value=\"sugerencias\">Haznos sugerencias</option>\n                <option class=\"optioncombo\" value=\"reclamaciones\">Atendemos tus reclamaciones</option>\n                <option class=\"optioncombo\" value=\"novedades\">Te avisamos de nuestras novedades</option>\n                <option class=\"optioncombo\" value=\"diferente\">Otros</option>\n            </select>\n        </div>\n        <div class=\"control-group\">\n            <textarea required ng-model=\"contact.inputMessage\" class=\"input-block-level inputtextbox\" rows=\"4\" id=\"inputMessage\" name=\"inputMessage\" placeholder=\"Introduzca aqui su mensaje *\" style=\"max-width: 100%;\" dir=\"auto\"></textarea>\n            <span class=\"text-danger\" ng-show=\"contact_form.inputMessage.$error.required && (contact_form.inputMessage.$dirty || contact_form.inputMessage.$touched)\">El campo es obligatorio</span>\n        </div>\n        <input type=\"hidden\" name=\"token\" value=\"contact_form\" />\n        \n        <input class=\"btn btn-primary send\" type=\"submit\" name=\"submit\" id=\"submitBtn\" value=\"Enviar\" \n            ng-show=\"contact_form.inputName.$valid && contact_form.inputEmail.$valid && contact_form.inputMessage.$valid\" \n            ng-click=\"SubmitContact()\"/>\n        \n        <div id=\"resultMessage\" ng-class=\"class\">{{message}}</div>\n    </form> \n    </section>\n</section>\n\n");
   $templateCache.put("editor/editor.html", "<div class=\"editor-page\">\n  <div class=\"container page\">\n    <div class=\"row\">\n      <div class=\"col-md-10 offset-md-1 col-xs-12\">\n\n        <list-errors errors=\"$ctrl.errors\"></list-errors>\n\n        <form>\n          <fieldset ng-disabled=\"$ctrl.isSubmitting\">\n\n            <fieldset class=\"form-group\">\n              <input class=\"form-control form-control-lg\"\n                ng-model=\"$ctrl.article.title\"\n                type=\"text\"\n                placeholder=\"Article Title\" />\n            </fieldset>\n\n            <fieldset class=\"form-group\">\n              <input class=\"form-control\"\n                ng-model=\"$ctrl.article.description\"\n                type=\"text\"\n                placeholder=\"What\'s this article about?\" />\n            </fieldset>\n\n            <fieldset class=\"form-group\">\n              <textarea class=\"form-control\"\n                rows=\"8\"\n                ng-model=\"$ctrl.article.body\"\n                placeholder=\"Write your article (in markdown)\">\n              </textarea>\n            </fieldset>\n\n            <fieldset class=\"form-group\">\n              <input class=\"form-control\"\n                type=\"text\"\n                placeholder=\"Enter tags\"\n                ng-model=\"$ctrl.tagField\"\n                ng-keyup=\"$event.keyCode == 13 && $ctrl.addTag()\" />\n\n              <div class=\"tag-list\">\n                <span ng-repeat=\"tag in $ctrl.article.tagList\"\n                  class=\"tag-default tag-pill\">\n                  <i class=\"ion-close-round\" ng-click=\"$ctrl.removeTag(tag)\"></i>\n                  {{ tag }}\n                </span>\n              </div>\n            </fieldset>\n\n            <button class=\"btn btn-lg pull-xs-right btn-primary\" type=\"button\" ng-click=\"$ctrl.submit()\">\n              Publish Article\n            </button>\n\n          </fieldset>\n        </form>\n\n      </div>\n    </div>\n  </div>\n</div>\n");
@@ -46705,7 +46766,24 @@ var User = function () {
     value: function attemptAuth(type, credentials) {
       var _this = this;
 
-      var route = type === 'login' ? '/login' : '';
+      var route = '';
+
+      switch (type) {
+        case 'login':
+          route = '/login';
+          break;
+        case 'recover':
+          route = '/recover';
+          break;
+        case 'newpass':
+          route = '/newpass';
+          break;
+        default:
+          route = '';
+          break;
+      }
+
+      //  let route = (type === 'login') ? '/login' : '';
       return this._$http({
         url: this._AppConstants.api + '/users' + route,
         method: 'POST',
@@ -46728,6 +46806,7 @@ var User = function () {
         url: this._AppConstants.api + '/users/active/' + validatoken,
         method: 'GET'
       }).then(function (res) {
+        _this2._JWT.save(res.data.user.token);
         _this2.current = res.data.user;
         return res;
       });
