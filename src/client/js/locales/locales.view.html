@@ -22,10 +22,12 @@
                                     <div id="siteNotice"></div>
                                     <h1 id="firstHeading">{{local.nombre}}</h1>
                                     <div id="bodyContent">
-                                            <a ui-sref="app.local({id: '{{local._id}}'})"> 
-                                                    <img height="100" width="150" src="img/locales/{{local.categorias.subcategoria[0]}}.jpg">
-                                            </a>
-                                        <p><label>Dir: </label>{{local.direccion}} ({{local.poblacion}},{{local.provincia}})<br>
+                                        <a ui-sref="app.local({id: '{{local._id}}'})"> 
+                                            <img height="100" width="150" src="img/locales/{{local.categorias.subcategoria[0]}}.jpg">
+                                        </a>
+                                        <p><label>Dir: </label>{{local.direccion}} <br>
+                                            <label>Localidad: </label>{{local.poblacion}} <br>
+                                            <label>Provincia: </label>{{local.provincia}} <br>
                                             <label>Telf: </label>{{local.telf}}
                                         </p>
                                     </div>
@@ -52,24 +54,26 @@
                         </li>
                     </ul>
                 </div>
+                <div class="pager">
+                    <ul ng-if="vm.pager.pages.length" class="pagination">
+                        <li ng-class="{disabled:vm.pager.currentPage === 1}">
+                            <a ng-click="vm.setPage(1)">First</a>
+                        </li>
+                        <li ng-class="{disabled:vm.pager.currentPage === 1}">
+                            <a ng-click="vm.setPage(vm.pager.currentPage - 1)">Previous</a>
+                        </li>
+                        <li ng-repeat="page in vm.pager.pages" ng-class="{active:vm.pager.currentPage === page}">
+                            <a ng-click="vm.setPage(page)">{{page}}</a>
+                        </li>                
+                        <li ng-class="{disabled:vm.pager.currentPage === vm.pager.totalPages}">
+                            <a ng-click="vm.setPage(vm.pager.currentPage + 1)">Next</a>
+                        </li>
+                        <li ng-class="{disabled:vm.pager.currentPage === vm.pager.totalPages}">
+                            <a ng-click="vm.setPage(vm.pager.totalPages)">Last</a>
+                        </li>
+                    </ul>
+                </div>
             </div>
-            <ul ng-if="vm.pager.pages.length" class="pagination">
-                <li ng-class="{disabled:vm.pager.currentPage === 1}">
-                    <a ng-click="vm.setPage(1)">First</a>
-                </li>
-                <li ng-class="{disabled:vm.pager.currentPage === 1}">
-                    <a ng-click="vm.setPage(vm.pager.currentPage - 1)">Previous</a>
-                </li>
-                <li ng-repeat="page in vm.pager.pages" ng-class="{active:vm.pager.currentPage === page}">
-                    <a ng-click="vm.setPage(page)">{{page}}</a>
-                </li>                
-                <li ng-class="{disabled:vm.pager.currentPage === vm.pager.totalPages}">
-                    <a ng-click="vm.setPage(vm.pager.currentPage + 1)">Next</a>
-                </li>
-                <li ng-class="{disabled:vm.pager.currentPage === vm.pager.totalPages}">
-                    <a ng-click="vm.setPage(vm.pager.totalPages)">Last</a>
-                </li>
-            </ul>
         </section>
     </section>
 </section>

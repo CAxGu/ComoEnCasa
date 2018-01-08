@@ -7,6 +7,7 @@
   <!-- Banner for article title, action buttons -->
   <div class="banner">
     <div class="container">
+      <a ui-sref="app.{{$ctrl.local.categorias.categoria}}"><p> <- Back</p></a>
       <h3 ng-bind="::$ctrl.local.nombre"></h3>
       <br>
       <h6>{{$ctrl.local.direccion}}, {{$ctrl.local.poblacion}}, {{$ctrl.local.provincia}} <a href="" ng-click="gotoAnchor('gmaps')")>(gmaps)</a></h6>

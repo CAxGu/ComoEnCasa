@@ -3,7 +3,7 @@
     margin-top: 0.5rem !important;
     display: grid;
     grid-template-columns: 1fr 1fr;
-    grid-template-rows: 1fr,0.5fr;
+    grid-template-rows: 1fr,0.5fr,0.5fr;
     padding-bottom: 2em;
   }
 
@@ -46,6 +46,11 @@ div.listado{
   width: 100%  !important;
 }
 
+.pager{
+  grid-column:2;
+  grid-row:3;
+  style: none;
+}
 
 /* CARD VIEW  -------------------------------------------------*/
 
