@@ -84,6 +84,7 @@ div.listado{
 
   
 #gridcardlocal{
+  padding: .7% 0;
   display: grid;
   grid-template-columns: 0.5fr 1fr;
   grid-template-rows: 0.5fr;

@@ -1,10 +1,10 @@
 <link rel="stylesheet" href="style/locales_style.css">
 <section id="sections" class="sections">
     <section id="content" class="content" >
-        <section id="locals" ng-show="$loc.locales">
+        <section id="locals" ng-show="vm.locals">
             <div class="sectionHead">
-                <h3>LOCALES</h3>
-                <span class="slogan">List of all Locals in the app</span>
+                <h3>{{vm.category | uppercase}}</h3>
+                <span class="slogan">List of all {{vm.category}} in the app</span>
             </div>
         </section>
         <section id="listlocals">
@@ -15,9 +15,9 @@
                 <div class="maps">
                         <ng-map default-style="true" center="current-location" zoom="10">
                                 <marker id="mark{{$index}}" position="{{local.latitud}},{{local.longitud}}"
-                                  on-click="map.showInfoWindow(event, 'infow{{local.nombre}}{{$index}}')" ng-repeat="local in $loc.locales | filter:search">
+                                  on-click="map.showInfoWindow(event, 'infow{{local.nombre}}{{$index}}')" ng-repeat="local in vm.locals | filter:search">
                                 </marker>
-                                <info-window id="infow{{local.nombre}}{{$index}}" max-width="200" ng-repeat="local in $loc.locales" position="current-location">
+                                <info-window id="infow{{local.nombre}}{{$index}}" max-width="200" ng-repeat="local in vm.locals" position="current-location">
                                   <div>
                                     <div id="siteNotice"></div>
                                     <h1 id="firstHeading">{{local.nombre}}</h1>
@@ -35,7 +35,7 @@
                 </div>
                 <div class="listado">
                     <ul>
-                        <li class="list" ng-repeat="local in $loc.locales | filter:search:strict">
+                        <li class="list" ng-repeat="local in vm.items | filter:search:strict">
                         <a ui-sref="app.local({id: '{{local._id}}'})">
                                 <section id="gridcardlocal">
                                     <div id="imagenlocal">
@@ -53,6 +53,23 @@
                     </ul>
                 </div>
             </div>
+            <ul ng-if="vm.pager.pages.length" class="pagination">
+                <li ng-class="{disabled:vm.pager.currentPage === 1}">
+                    <a ng-click="vm.setPage(1)">First</a>
+                </li>
+                <li ng-class="{disabled:vm.pager.currentPage === 1}">
+                    <a ng-click="vm.setPage(vm.pager.currentPage - 1)">Previous</a>
+                </li>
+                <li ng-repeat="page in vm.pager.pages" ng-class="{active:vm.pager.currentPage === page}">
+                    <a ng-click="vm.setPage(page)">{{page}}</a>
+                </li>                
+                <li ng-class="{disabled:vm.pager.currentPage === vm.pager.totalPages}">
+                    <a ng-click="vm.setPage(vm.pager.currentPage + 1)">Next</a>
+                </li>
+                <li ng-class="{disabled:vm.pager.currentPage === vm.pager.totalPages}">
+                    <a ng-click="vm.setPage(vm.pager.totalPages)">Last</a>
+                </li>
+            </ul>
         </section>
     </section>
 </section>
