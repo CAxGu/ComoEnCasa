@@ -1,20 +1,13 @@
+<link rel="stylesheet" href="style/login_style.css">
+
+    <section class="login-container">
 <div class="auth-page">
   <div class="container page">
     <div class="row">
 
-      <div class="col-md-6 offset-md-3 col-xs-12">
+      <div class="formlogin col-md-6 offset-md-3 col-xs-12">
         <h1 class="text-xs-center" ng-bind="::$ctrl.title"></h1>
-        <p class="text-xs-center">
-          <a ui-sref="app.login"
-            ng-show="$ctrl.authType === 'register'">
-            Have an account?
-          </a>
-          <a ui-sref="app.register"
-            ng-show="$ctrl.authType === 'login'">
-            Need an account?
-          </a>
-        </p>
-
+      
         <list-errors errors="$ctrl.errors"></list-errors>
 
         <form ng-submit="$ctrl.submitForm()">
@@ -41,10 +34,20 @@
                 ng-model="$ctrl.formData.password" />
             </fieldset>
 
-            <a ui-sref="app.recover"
-            ng-show="$ctrl.authType === 'login'">
-            Forgot your password?
-            </a>
+            <p class="text-xs-center">
+                <a class="linklogin" ui-sref="app.login"
+                  ng-show="$ctrl.authType === 'register'">
+                  ¿Have an account?
+                </a>
+                <a class="linklogin" ui-sref="app.register"
+                  ng-show="$ctrl.authType === 'login'">
+                ¿Need an account?
+                </a>
+                <a class="linklogin" ui-sref="app.recover"
+                  ng-show="$ctrl.authType === 'login'">
+                  ¿Forgot your password?
+                </a>
+              </p>
             <br>
             <button class="btn btn-lg btn-primary pull-xs-right"
               type="submit"
@@ -57,4 +60,6 @@
 
     </div>
   </div>
+
 </div>
+</section>

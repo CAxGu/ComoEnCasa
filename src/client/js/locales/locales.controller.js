@@ -47,7 +47,6 @@ class LocalesCtrl {
               });
             }
             vm.dummyItems = this.locals;
-            console.log(vm.dummyItems);
             initController();
           }
         ); 

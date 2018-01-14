@@ -1,0 +1,44 @@
+.grif-profile{
+    display: grid;
+    grid-template-columns: 1fr;
+    grid-template-rows: 2;
+    margin: 1em;
+    height: 100%;
+    width: 100%;
+}
+
+.user-info{
+    grid-row: 1;
+}
+
+.contaier{
+    grid-row: 2;
+}
+
+.grid-infouser{
+    display: grid;
+    grid-template-columns: repeat(2,1fr);
+    grid-template-rows: 1;
+    padding: 1em;
+}
+
+.profilepic{
+    grid-row: 1;
+    grid-column: 1;
+}
+
+.profilepic img{
+    padding:1em;
+    width: 300px;
+    height: 300px;
+}
+
+.info-user{
+    grid-row: 1;
+    grid-column: 2;
+}
+
+.linkprofile{
+font-size: 2rem;
+font-family: none;
+}

@@ -9,9 +9,11 @@ class SettingsCtrl {
       email: User.current.email,
       bio: User.current.bio,
       image: User.current.image,
-      username: User.current.username
+      username: User.current.username,
+      country: User.current.country
     }
 
+    this.country = [{pais:"Spain"},{pais:"France"},{pais:"Italy"},{pais:"Portugal"}]
     this.logout = User.logout.bind(User);
 
   }

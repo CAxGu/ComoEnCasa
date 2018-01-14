@@ -53,6 +53,9 @@ router.put('/user', auth.required, function(req, res, next){
     if(typeof req.body.user.image !== 'undefined'){
       user.image = req.body.user.image;
     }
+    if(typeof req.body.user.country !== 'undefined'){
+      user.country = req.body.user.country;
+    }
     if(typeof req.body.user.password !== 'undefined'){
       user.setPassword(req.body.user.password);
     }
@@ -95,6 +98,8 @@ router.post('/users', function(req, res, next){
   user.email = req.body.user.email;
   user.setPassword(req.body.user.password);
   user.activo = 0;
+  user.image = "https://icon-icons.com/icons2/1115/PNG/512/1486071980-1_79325.png";
+  user.country = "";
 
   user.save().then(function(){
     return res.json({user: user.toAuthJSON()});

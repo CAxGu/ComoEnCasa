@@ -1,0 +1,46 @@
+/* .gridlogin{
+    display: grid;
+    grid-template-columns: minmax(100px, 1fr);
+    grid-template-columns: repeat(3, 1fr);
+    grid-template-rows: 1fr;
+    height: 100%;
+}
+
+.gridlogin-asideleft{
+    grid-column: 1;
+    height: 100%;
+} */
+
+.login-container{
+    margin:1em;
+    padding: 1em;
+    height: 100%;
+}
+
+.linklogin{
+ font-size: 2rem;
+ font-family: none;
+ color: rgb(68, 67, 67);
+ width: 100%;
+}
+
+.linklogin:hover{
+    color: red;
+   }
+
+.formlogin{
+    margin-left:25%;
+    height: 100%;
+    padding:2em;
+    background-color: rgb(255, 255, 218);
+}
+
+.auth-page{
+    width: 100%;
+    padding: 0;
+} 
+
+.container{
+    padding: 0;
+    width: 100%;
+}

@@ -9,12 +9,12 @@ var UserSchema = new mongoose.Schema({
   email: {type: String, lowercase: true, unique: true, required: [true, "can't be blank"], index: true},
   bio: String,
   image: String,
-  favorites: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Article' }],
+  // favorites: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Article' }],
   // following: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
 
   activo: Number,
   recuperapwd: String,
-
+  country: String,
   hash: String,
   salt: String
 }, {timestamps: true});
@@ -63,7 +63,7 @@ UserSchema.methods.toProfileJSONFor = function(user){
   return {
     username: this.username,
     bio: this.bio,
-    image: this.image || 'https://static.productionready.io/images/smiley-cyrus.jpg'
+    image: this.image/* || 'https://icon-icons.com/icons2/1115/PNG/512/1486071980-1_79325.png' */
   /*   following: user ? user.isFollowing(this._id) : false */
   };
 };
