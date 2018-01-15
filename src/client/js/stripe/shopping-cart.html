@@ -1,0 +1,47 @@
+<link rel="stylesheet" href="style/shopping_style.css">
+<div class="container">
+	<table id="cart" class="table table-hover table-condensed">
+    				<thead>
+						<tr>
+							<th style="width:50%">Product</th>
+							<th style="width:10%">Price</th>
+							<th style="width:8%">Quantity</th>
+							<th style="width:22%" class="text-center">Subtotal</th>
+							<th style="width:10%"></th>
+						</tr>
+					</thead>
+					<tbody>
+						<tr ng-repeat="producto in $ctrl.productos" >
+							<td data-th="Product">
+								<div class="row">
+									<div class="col-sm-2 hidden-xs"><img src="{{producto[1].foto}}" alt="Picture of {{producto[1].nombre}}" class="img-responsive"/></div>
+									<div class="col-sm-10">
+										<h4 class="nomargin">{{producto[1].nombre}}</h4>
+										<p>{{producto[1].descripcion}}</p>
+									</div>
+								</div>
+							</td>
+							<td data-th="Price">{{producto[1].price}}</td>
+							<td data-th="Quantity">
+								<input type="number" class="form-control text-center" value="{{producto[1].cant}}" ng-model="valor" ng-change="$ctrl.changeCant($index,valor)">
+							</td>
+							<td data-th="Subtotal" class="text-center">{{producto[1].price * producto[1].cant}}</td>
+							<td class="actions" data-th="">
+								<button class="btn btn-info btn-sm" ng-click="$ctrl.reload()"><i class="fa fa-refresh"></i></button>
+								<button class="btn btn-danger btn-sm" ng-click="$ctrl.removeProduct($index)"><i class="fa fa-trash-o"></i></button>								
+							</td>
+						</tr>
+					</tbody>
+					<tfoot>
+						<tr class="visible-xs">
+							<td class="text-center"><strong>Total {{$ctrl.totalPrice}}</strong></td>
+						</tr>
+						<tr>
+							<td><a ui-sref="app.locales" class="btn btn-warning"><i class="fa fa-angle-left"></i> Continue Shopping</a></td>
+							<td colspan="2" class="hidden-xs"></td>
+							<td class="hidden-xs text-center"><strong>Total ${{$ctrl.totalPrice}}</strong></td>
+							<td><a ui-sref="app.stripe" class="btn btn-success btn-block">Checkout <i class="fa fa-angle-right"></i></a></td>
+						</tr>
+					</tfoot>
+				</table>
+</div>

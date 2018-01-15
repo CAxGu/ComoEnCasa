@@ -34,4 +34,7 @@ servicesModule.service('Contact', ContactService);
 import LocalService from './local.service';
 servicesModule.service('Local', LocalService);
 
+import StripeService from './stripe.service';
+servicesModule.service('Stripe', StripeService);
+
 export default servicesModule;

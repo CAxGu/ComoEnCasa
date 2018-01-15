@@ -43,3 +43,15 @@ h1, h2, h3, h4, h5, h6{
     color: #fff;
     font-family: headertext;
 }
+
+.gridlist{
+    padding-bottom: 0;
+    grid-template-columns: 0fr 1fr
+}
+.gridlist div ul {
+    height: auto;
+}
+.menus{
+    margin: 0 auto;
+    text-align: center;
+}

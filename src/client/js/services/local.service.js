@@ -33,4 +33,20 @@ export default class Locals {
         );
         return deferred.promise;
     }
+    getProducts(id) {
+        console.log('jalo'+id);
+        let deferred = this._$q.defer();
+        if (!id.replace(" ", "")) {
+            deferred.reject("Product id is empty");
+            return deferred.promise;
+        }
+        this._$http({
+            url: this._AppConstants.api + '/locales/productos/' + id,
+            method: 'GET'
+        }).then(
+            (res) => deferred.resolve(res.data.productos),
+            (err) => deferred.reject(err)
+        );
+        return deferred.promise;
+    }
 }

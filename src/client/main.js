@@ -1,4 +1,303 @@
 (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
+'use strict'
+
+var angular = require('angular')
+
+module.exports = angular.module('assert-q-constructor', [])
+  .factory('assertQConstructor', main)
+  .name
+
+main.$inject = ['$q']
+function main ($q) {
+  return function assertQConstructor (message) {
+    if (typeof $q !== 'function') {
+      throw new Error(message || '$q is not a function')
+    }
+  }
+}
+
+},{"angular":12}],2:[function(require,module,exports){
+'use strict'
+
+var promisify = require('./promisify')
+
+module.exports = require('angular')
+  .module('promisify', [])
+  .service('promisify', promisify)
+  .name
+
+},{"./promisify":3,"angular":12}],3:[function(require,module,exports){
+'use strict'
+
+var angular = require('angular')
+var assertFn = require('assert-function')
+var toArray = require('to-array')
+
+module.exports = promisify$Q
+
+promisify$Q.$inject = ['$q', '$rootScope']
+function promisify$Q ($q, $rootScope) {
+  function promisify (callback, receiver) {
+    receiver = receiver || {}
+
+    if (typeof callback === 'string') {
+      callback = receiver[callback]
+    }
+
+    assertFn(callback)
+
+    function promisifed () {
+      var args = arguments
+      return $q(function (resolve, reject) {
+        var apply = $rootScope.$apply.bind($rootScope)
+        try {
+          callback.apply(receiver, toArray(args).concat(Nodeback(apply, resolve, reject)))
+        } catch (err) {
+          setTimeout(function () {
+            apply(function () {
+              reject(err)
+            })
+          })
+        }
+      })
+    }
+    promisifed.__isPromisifed__ = true
+    return promisifed
+  }
+
+  function promisifyAll (object) {
+    return angular.forEach(object, function (value, key) {
+      key = key + 'Async'
+      if (!value || typeof value !== 'function' || value.__isPromisifed__) return
+      object[key] = promisify(value, object)
+    })
+  }
+
+  return angular.extend(promisify, {
+    promisifyAll: promisifyAll
+  })
+}
+
+function Nodeback (apply, resolve, reject) {
+  return function nodeback (err, value) {
+    var args = arguments
+    apply(function () {
+      if (err) {
+        return reject(err)
+      }
+
+      if (args.length <= 2) {
+        return resolve(value)
+      }
+
+      resolve(toArray(args, 1))
+    })
+  }
+}
+
+},{"angular":12,"assert-function":19,"to-array":42}],4:[function(require,module,exports){
+'use strict';
+var isObj = require('is-obj');
+
+module.exports.get = function (obj, path) {
+	if (!isObj(obj) || typeof path !== 'string') {
+		return obj;
+	}
+
+	var pathArr = getPathSegments(path);
+
+	for (var i = 0; i < pathArr.length; i++) {
+		var descriptor = Object.getOwnPropertyDescriptor(obj, pathArr[i]) || Object.getOwnPropertyDescriptor(Object.prototype, pathArr[i]);
+		if (descriptor && !descriptor.enumerable) {
+			return;
+		}
+
+		obj = obj[pathArr[i]];
+
+		if (obj === undefined || obj === null) {
+			// `obj` is either `undefined` or `null` so we want to stop the loop, and
+			// if this is not the last bit of the path, and
+			// if it did't return `undefined`
+			// it would return `null` if `obj` is `null`
+			// but we want `get({foo: null}, 'foo.bar')` to equal `undefined` not `null`
+			if (i !== pathArr.length - 1) {
+				return undefined;
+			}
+
+			break;
+		}
+	}
+
+	return obj;
+};
+
+module.exports.set = function (obj, path, value) {
+	if (!isObj(obj) || typeof path !== 'string') {
+		return;
+	}
+
+	var pathArr = getPathSegments(path);
+
+	for (var i = 0; i < pathArr.length; i++) {
+		var p = pathArr[i];
+
+		if (!isObj(obj[p])) {
+			obj[p] = {};
+		}
+
+		if (i === pathArr.length - 1) {
+			obj[p] = value;
+		}
+
+		obj = obj[p];
+	}
+};
+
+module.exports.delete = function (obj, path) {
+	if (!isObj(obj) || typeof path !== 'string') {
+		return;
+	}
+
+	var pathArr = getPathSegments(path);
+
+	for (var i = 0; i < pathArr.length; i++) {
+		var p = pathArr[i];
+
+		if (i === pathArr.length - 1) {
+			delete obj[p];
+			return;
+		}
+
+		obj = obj[p];
+	}
+};
+
+module.exports.has = function (obj, path) {
+	if (!isObj(obj) || typeof path !== 'string') {
+		return false;
+	}
+
+	var pathArr = getPathSegments(path);
+
+	for (var i = 0; i < pathArr.length; i++) {
+		obj = obj[pathArr[i]];
+
+		if (obj === undefined) {
+			return false;
+		}
+	}
+
+	return true;
+};
+
+function getPathSegments(path) {
+	var pathArr = path.split('.');
+	var parts = [];
+
+	for (var i = 0; i < pathArr.length; i++) {
+		var p = pathArr[i];
+
+		while (p[p.length - 1] === '\\' && pathArr[i + 1] !== undefined) {
+			p = p.slice(0, -1) + '.';
+			p += pathArr[++i];
+		}
+
+		parts.push(p);
+	}
+
+	return parts;
+}
+
+},{"is-obj":26}],5:[function(require,module,exports){
+'use strict'
+
+var angular = require('angular')
+var provider = require('./provider')
+
+module.exports = angular.module('angular-stripe', [
+  require('angular-q-promisify'),
+  require('angular-assert-q-constructor')
+])
+.provider('stripe', provider)
+.run(verifyQ)
+.name
+
+verifyQ.$inject = ['assertQConstructor']
+function verifyQ (assertQConstructor) {
+  assertQConstructor('angular-stripe: For Angular <= 1.2 support, first load https://github.com/bendrucker/angular-q-constructor')
+}
+
+},{"./provider":7,"angular":12,"angular-assert-q-constructor":1,"angular-q-promisify":2}],6:[function(require,module,exports){
+'use strict'
+
+var Lazy = require('lazy-async')
+var dot = require('dot-prop')
+var loadScript = require('load-script-global')
+var stripeErrback = require('stripe-errback')
+
+module.exports = LazyStripe
+
+function LazyStripe (url, promisify) {
+  var methods = stripeErrback.methods.async.concat(stripeErrback.methods.sync)
+  var lazy = Lazy(methods, load)
+
+  return methods.reduce(function (acc, method) {
+    var fn = dot.get(lazy, method)
+    dot.set(acc, method, promisify(fn))
+    return acc
+  }, {})
+
+  function load (callback) {
+    loadScript({
+      url: url,
+      global: 'Stripe'
+    }, onLoad)
+
+    function onLoad (err, Stripe) {
+      if (err) return callback(err)
+      var stripe = stripeErrback(Stripe)
+      stripe.setPublishableKey = Success(stripe.setPublishableKey, stripe)
+      callback(null, stripe)
+    }
+  }
+}
+
+function Success (fn, context) {
+  return function success () {
+    var callback = Array.prototype.pop.call(arguments)
+    fn.apply(context, arguments)
+    callback()
+  }
+}
+
+},{"dot-prop":4,"lazy-async":28,"load-script-global":30,"stripe-errback":40}],7:[function(require,module,exports){
+'use strict'
+
+var LazyStripe = require('./lazy')
+
+module.exports = stripeProvider
+
+function stripeProvider () {
+  var key = null
+  var stripe = null
+
+  this.url = 'https://js.stripe.com/v2/'
+  this.setPublishableKey = function setPublishableKey (_key) {
+    key = _key
+  }
+
+  this.$get = service
+  this.$get.$inject = ['promisify', '$exceptionHandler']
+
+  function service (promisify, $exceptionHandler) {
+    if (stripe) return stripe
+    stripe = LazyStripe(this.url, promisify)
+    stripe.setPublishableKey(key)
+    return stripe
+  }
+}
+
+},{"./lazy":6}],8:[function(require,module,exports){
 (function() {
   'use strict';
 
@@ -508,12 +807,12 @@
 
 angular.module("toastr").run(["$templateCache", function($templateCache) {$templateCache.put("directives/progressbar/progressbar.html","<div class=\"toast-progress\"></div>\n");
 $templateCache.put("directives/toast/toast.html","<div class=\"{{toastClass}} {{toastType}}\" ng-click=\"tapToast()\">\n  <div ng-switch on=\"allowHtml\">\n    <div ng-switch-default ng-if=\"title\" class=\"{{titleClass}}\" aria-label=\"{{title}}\">{{title}}</div>\n    <div ng-switch-default class=\"{{messageClass}}\" aria-label=\"{{message}}\">{{message}}</div>\n    <div ng-switch-when=\"true\" ng-if=\"title\" class=\"{{titleClass}}\" ng-bind-html=\"title\"></div>\n    <div ng-switch-when=\"true\" class=\"{{messageClass}}\" ng-bind-html=\"message\"></div>\n  </div>\n  <progress-bar ng-if=\"progressBar\"></progress-bar>\n</div>\n");}]);
-},{}],2:[function(require,module,exports){
+},{}],9:[function(require,module,exports){
 require('./dist/angular-toastr.tpls.js');
 module.exports = 'toastr';
 
 
-},{"./dist/angular-toastr.tpls.js":1}],3:[function(require,module,exports){
+},{"./dist/angular-toastr.tpls.js":8}],10:[function(require,module,exports){
 /**
  * State-based routing for AngularJS
  * @version v0.4.3
@@ -5198,7 +5497,7 @@ angular.module('ui.router.state')
   .filter('isState', $IsStateFilter)
   .filter('includedByState', $IncludedByStateFilter);
 })(window, window.angular);
-},{}],4:[function(require,module,exports){
+},{}],11:[function(require,module,exports){
 /**
  * @license AngularJS v1.6.6
  * (c) 2010-2017 Google, Inc. http://angularjs.org
@@ -39088,11 +39387,959 @@ $provide.value("$locale", {
 })(window);
 
 !window.angular.$$csp().noInlineStyle && window.angular.element(document.head).prepend('<style type="text/css">@charset "UTF-8";[ng\\:cloak],[ng-cloak],[data-ng-cloak],[x-ng-cloak],.ng-cloak,.x-ng-cloak,.ng-hide:not(.ng-hide-animate){display:none !important;}ng\\:form{display:block;}.ng-animate-shim{visibility:hidden;}.ng-anchor{position:absolute;}</style>');
-},{}],5:[function(require,module,exports){
+},{}],12:[function(require,module,exports){
 require('./angular');
 module.exports = angular;
 
-},{"./angular":4}],6:[function(require,module,exports){
+},{"./angular":11}],13:[function(require,module,exports){
+/*!
+ * array-last <https://github.com/jonschlinkert/array-last>
+ *
+ * Copyright (c) 2014 Jon Schlinkert, contributors.
+ * Licensed under the MIT license.
+ */
+
+var isNumber = require('is-number');
+var slice = require('array-slice');
+
+module.exports = function last(arr, num) {
+  if (!Array.isArray(arr)) {
+    throw new Error('array-last expects an array as the first argument.');
+  }
+
+  if (arr.length === 0) {
+    return null;
+  }
+
+  var res = slice(arr, arr.length - (isNumber(num) ? +num : 1));
+  if (+num === 1 || num == null) {
+    return res[0];
+  }
+  return res;
+};
+
+},{"array-slice":14,"is-number":15}],14:[function(require,module,exports){
+/*!
+ * array-slice <https://github.com/jonschlinkert/array-slice>
+ *
+ * Copyright (c) 2014-2015, Jon Schlinkert.
+ * Licensed under the MIT License.
+ */
+
+'use strict';
+
+module.exports = function slice(arr, start, end) {
+  var len = arr.length >>> 0;
+  var range = [];
+
+  start = idx(arr, start);
+  end = idx(arr, end, len);
+
+  while (start < end) {
+    range.push(arr[start++]);
+  }
+  return range;
+};
+
+
+function idx(arr, pos, end) {
+  var len = arr.length >>> 0;
+
+  if (pos == null) {
+    pos = end || 0;
+  } else if (pos < 0) {
+    pos = Math.max(len + pos, 0);
+  } else {
+    pos = Math.min(pos, len);
+  }
+
+  return pos;
+}
+},{}],15:[function(require,module,exports){
+/*!
+ * is-number <https://github.com/jonschlinkert/is-number>
+ *
+ * Copyright (c) 2014 Jon Schlinkert, contributors.
+ * Licensed under the MIT License
+ */
+
+'use strict';
+
+module.exports = function isNumber(n) {
+  return !!(+n) || n === 0 || n === '0';
+};
+
+},{}],16:[function(require,module,exports){
+"use strict";
+
+// rawAsap provides everything we need except exception management.
+var rawAsap = require("./raw");
+// RawTasks are recycled to reduce GC churn.
+var freeTasks = [];
+// We queue errors to ensure they are thrown in right order (FIFO).
+// Array-as-queue is good enough here, since we are just dealing with exceptions.
+var pendingErrors = [];
+var requestErrorThrow = rawAsap.makeRequestCallFromTimer(throwFirstError);
+
+function throwFirstError() {
+    if (pendingErrors.length) {
+        throw pendingErrors.shift();
+    }
+}
+
+/**
+ * Calls a task as soon as possible after returning, in its own event, with priority
+ * over other events like animation, reflow, and repaint. An error thrown from an
+ * event will not interrupt, nor even substantially slow down the processing of
+ * other events, but will be rather postponed to a lower priority event.
+ * @param {{call}} task A callable object, typically a function that takes no
+ * arguments.
+ */
+module.exports = asap;
+function asap(task) {
+    var rawTask;
+    if (freeTasks.length) {
+        rawTask = freeTasks.pop();
+    } else {
+        rawTask = new RawTask();
+    }
+    rawTask.task = task;
+    rawAsap(rawTask);
+}
+
+// We wrap tasks with recyclable task objects.  A task object implements
+// `call`, just like a function.
+function RawTask() {
+    this.task = null;
+}
+
+// The sole purpose of wrapping the task is to catch the exception and recycle
+// the task object after its single use.
+RawTask.prototype.call = function () {
+    try {
+        this.task.call();
+    } catch (error) {
+        if (asap.onerror) {
+            // This hook exists purely for testing purposes.
+            // Its name will be periodically randomized to break any code that
+            // depends on its existence.
+            asap.onerror(error);
+        } else {
+            // In a web browser, exceptions are not fatal. However, to avoid
+            // slowing down the queue of pending tasks, we rethrow the error in a
+            // lower priority turn.
+            pendingErrors.push(error);
+            requestErrorThrow();
+        }
+    } finally {
+        this.task = null;
+        freeTasks[freeTasks.length] = this;
+    }
+};
+
+},{"./raw":17}],17:[function(require,module,exports){
+(function (global){
+"use strict";
+
+// Use the fastest means possible to execute a task in its own turn, with
+// priority over other events including IO, animation, reflow, and redraw
+// events in browsers.
+//
+// An exception thrown by a task will permanently interrupt the processing of
+// subsequent tasks. The higher level `asap` function ensures that if an
+// exception is thrown by a task, that the task queue will continue flushing as
+// soon as possible, but if you use `rawAsap` directly, you are responsible to
+// either ensure that no exceptions are thrown from your task, or to manually
+// call `rawAsap.requestFlush` if an exception is thrown.
+module.exports = rawAsap;
+function rawAsap(task) {
+    if (!queue.length) {
+        requestFlush();
+        flushing = true;
+    }
+    // Equivalent to push, but avoids a function call.
+    queue[queue.length] = task;
+}
+
+var queue = [];
+// Once a flush has been requested, no further calls to `requestFlush` are
+// necessary until the next `flush` completes.
+var flushing = false;
+// `requestFlush` is an implementation-specific method that attempts to kick
+// off a `flush` event as quickly as possible. `flush` will attempt to exhaust
+// the event queue before yielding to the browser's own event loop.
+var requestFlush;
+// The position of the next task to execute in the task queue. This is
+// preserved between calls to `flush` so that it can be resumed if
+// a task throws an exception.
+var index = 0;
+// If a task schedules additional tasks recursively, the task queue can grow
+// unbounded. To prevent memory exhaustion, the task queue will periodically
+// truncate already-completed tasks.
+var capacity = 1024;
+
+// The flush function processes all tasks that have been scheduled with
+// `rawAsap` unless and until one of those tasks throws an exception.
+// If a task throws an exception, `flush` ensures that its state will remain
+// consistent and will resume where it left off when called again.
+// However, `flush` does not make any arrangements to be called again if an
+// exception is thrown.
+function flush() {
+    while (index < queue.length) {
+        var currentIndex = index;
+        // Advance the index before calling the task. This ensures that we will
+        // begin flushing on the next task the task throws an error.
+        index = index + 1;
+        queue[currentIndex].call();
+        // Prevent leaking memory for long chains of recursive calls to `asap`.
+        // If we call `asap` within tasks scheduled by `asap`, the queue will
+        // grow, but to avoid an O(n) walk for every task we execute, we don't
+        // shift tasks off the queue after they have been executed.
+        // Instead, we periodically shift 1024 tasks off the queue.
+        if (index > capacity) {
+            // Manually shift all values starting at the index back to the
+            // beginning of the queue.
+            for (var scan = 0, newLength = queue.length - index; scan < newLength; scan++) {
+                queue[scan] = queue[scan + index];
+            }
+            queue.length -= index;
+            index = 0;
+        }
+    }
+    queue.length = 0;
+    index = 0;
+    flushing = false;
+}
+
+// `requestFlush` is implemented using a strategy based on data collected from
+// every available SauceLabs Selenium web driver worker at time of writing.
+// https://docs.google.com/spreadsheets/d/1mG-5UYGup5qxGdEMWkhP6BWCz053NUb2E1QoUTU16uA/edit#gid=783724593
+
+// Safari 6 and 6.1 for desktop, iPad, and iPhone are the only browsers that
+// have WebKitMutationObserver but not un-prefixed MutationObserver.
+// Must use `global` or `self` instead of `window` to work in both frames and web
+// workers. `global` is a provision of Browserify, Mr, Mrs, or Mop.
+
+/* globals self */
+var scope = typeof global !== "undefined" ? global : self;
+var BrowserMutationObserver = scope.MutationObserver || scope.WebKitMutationObserver;
+
+// MutationObservers are desirable because they have high priority and work
+// reliably everywhere they are implemented.
+// They are implemented in all modern browsers.
+//
+// - Android 4-4.3
+// - Chrome 26-34
+// - Firefox 14-29
+// - Internet Explorer 11
+// - iPad Safari 6-7.1
+// - iPhone Safari 7-7.1
+// - Safari 6-7
+if (typeof BrowserMutationObserver === "function") {
+    requestFlush = makeRequestCallFromMutationObserver(flush);
+
+// MessageChannels are desirable because they give direct access to the HTML
+// task queue, are implemented in Internet Explorer 10, Safari 5.0-1, and Opera
+// 11-12, and in web workers in many engines.
+// Although message channels yield to any queued rendering and IO tasks, they
+// would be better than imposing the 4ms delay of timers.
+// However, they do not work reliably in Internet Explorer or Safari.
+
+// Internet Explorer 10 is the only browser that has setImmediate but does
+// not have MutationObservers.
+// Although setImmediate yields to the browser's renderer, it would be
+// preferrable to falling back to setTimeout since it does not have
+// the minimum 4ms penalty.
+// Unfortunately there appears to be a bug in Internet Explorer 10 Mobile (and
+// Desktop to a lesser extent) that renders both setImmediate and
+// MessageChannel useless for the purposes of ASAP.
+// https://github.com/kriskowal/q/issues/396
+
+// Timers are implemented universally.
+// We fall back to timers in workers in most engines, and in foreground
+// contexts in the following browsers.
+// However, note that even this simple case requires nuances to operate in a
+// broad spectrum of browsers.
+//
+// - Firefox 3-13
+// - Internet Explorer 6-9
+// - iPad Safari 4.3
+// - Lynx 2.8.7
+} else {
+    requestFlush = makeRequestCallFromTimer(flush);
+}
+
+// `requestFlush` requests that the high priority event queue be flushed as
+// soon as possible.
+// This is useful to prevent an error thrown in a task from stalling the event
+// queue if the exception handled by Node.js’s
+// `process.on("uncaughtException")` or by a domain.
+rawAsap.requestFlush = requestFlush;
+
+// To request a high priority event, we induce a mutation observer by toggling
+// the text of a text node between "1" and "-1".
+function makeRequestCallFromMutationObserver(callback) {
+    var toggle = 1;
+    var observer = new BrowserMutationObserver(callback);
+    var node = document.createTextNode("");
+    observer.observe(node, {characterData: true});
+    return function requestCall() {
+        toggle = -toggle;
+        node.data = toggle;
+    };
+}
+
+// The message channel technique was discovered by Malte Ubl and was the
+// original foundation for this library.
+// http://www.nonblocking.io/2011/06/windownexttick.html
+
+// Safari 6.0.5 (at least) intermittently fails to create message ports on a
+// page's first load. Thankfully, this version of Safari supports
+// MutationObservers, so we don't need to fall back in that case.
+
+// function makeRequestCallFromMessageChannel(callback) {
+//     var channel = new MessageChannel();
+//     channel.port1.onmessage = callback;
+//     return function requestCall() {
+//         channel.port2.postMessage(0);
+//     };
+// }
+
+// For reasons explained above, we are also unable to use `setImmediate`
+// under any circumstances.
+// Even if we were, there is another bug in Internet Explorer 10.
+// It is not sufficient to assign `setImmediate` to `requestFlush` because
+// `setImmediate` must be called *by name* and therefore must be wrapped in a
+// closure.
+// Never forget.
+
+// function makeRequestCallFromSetImmediate(callback) {
+//     return function requestCall() {
+//         setImmediate(callback);
+//     };
+// }
+
+// Safari 6.0 has a problem where timers will get lost while the user is
+// scrolling. This problem does not impact ASAP because Safari 6.0 supports
+// mutation observers, so that implementation is used instead.
+// However, if we ever elect to use timers in Safari, the prevalent work-around
+// is to add a scroll event listener that calls for a flush.
+
+// `setTimeout` does not call the passed callback if the delay is less than
+// approximately 7 in web workers in Firefox 8 through 18, and sometimes not
+// even then.
+
+function makeRequestCallFromTimer(callback) {
+    return function requestCall() {
+        // We dispatch a timeout with a specified delay of 0 for engines that
+        // can reliably accommodate that request. This will usually be snapped
+        // to a 4 milisecond delay, but once we're flushing, there's no delay
+        // between events.
+        var timeoutHandle = setTimeout(handleTimer, 0);
+        // However, since this timer gets frequently dropped in Firefox
+        // workers, we enlist an interval handle that will try to fire
+        // an event 20 times per second until it succeeds.
+        var intervalHandle = setInterval(handleTimer, 50);
+
+        function handleTimer() {
+            // Whichever timer succeeds will cancel both timers and
+            // execute the callback.
+            clearTimeout(timeoutHandle);
+            clearInterval(intervalHandle);
+            callback();
+        }
+    };
+}
+
+// This is for `asap.js` only.
+// Its name will be periodically randomized to break any code that depends on
+// its existence.
+rawAsap.makeRequestCallFromTimer = makeRequestCallFromTimer;
+
+// ASAP was originally a nextTick shim included in Q. This was factored out
+// into this ASAP package. It was later adapted to RSVP which made further
+// amendments. These decisions, particularly to marginalize MessageChannel and
+// to capture the MutationObserver implementation in a closure, were integrated
+// back into ASAP proper.
+// https://github.com/tildeio/rsvp.js/blob/cddf7232546a9cf858524b75cde6f9edf72620a7/lib/rsvp/asap.js
+
+}).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
+},{}],18:[function(require,module,exports){
+'use strict'
+
+var assert = require('assert-ok')
+var format = require('simple-format')
+var print = require('print-value')
+
+module.exports = function assertEqual (a, b) {
+  assert(a === b, format('expected `%s` to equal `%s`', print(a), print(b)))
+}
+
+},{"assert-ok":20,"print-value":35,"simple-format":39}],19:[function(require,module,exports){
+'use strict'
+
+module.exports = function assertFunction (value) {
+  if (typeof value !== 'function') {
+    throw new TypeError('Expected function, got: ' + value)
+  }
+}
+
+},{}],20:[function(require,module,exports){
+'use strict'
+
+module.exports = function assertOk (value, message) {
+  if (!value) {
+    throw new Error(message || 'Expected true, got ' + value)
+  }
+}
+
+},{}],21:[function(require,module,exports){
+'use strict'
+
+module.exports = CallAll
+
+function CallAll (fns) {
+  fns = Array.isArray(fns) ? fns : arguments
+  return function callAll () {
+    var args = arguments
+    var ret = new Array(fns.length)
+    for (var i = 0, ii = fns.length; i < ii; i++) {
+      ret[i] = fns[i].apply(null, args)
+    }
+    return ret
+  }
+}
+
+},{}],22:[function(require,module,exports){
+/**
+ * cuid.js
+ * Collision-resistant UID generator for browsers and node.
+ * Sequential for fast db lookups and recency sorting.
+ * Safe for element IDs and server-side lookups.
+ *
+ * Extracted from CLCTR
+ *
+ * Copyright (c) Eric Elliott 2012
+ * MIT License
+ */
+
+/*global window, navigator, document, require, process, module */
+(function (app) {
+  'use strict';
+  var namespace = 'cuid',
+    c = 0,
+    blockSize = 4,
+    base = 36,
+    discreteValues = Math.pow(base, blockSize),
+
+    pad = function pad(num, size) {
+      var s = "000000000" + num;
+      return s.substr(s.length-size);
+    },
+
+    randomBlock = function randomBlock() {
+      return pad((Math.random() *
+            discreteValues << 0)
+            .toString(base), blockSize);
+    },
+
+    safeCounter = function () {
+      c = (c < discreteValues) ? c : 0;
+      c++; // this is not subliminal
+      return c - 1;
+    },
+
+    api = function cuid() {
+      // Starting with a lowercase letter makes
+      // it HTML element ID friendly.
+      var letter = 'c', // hard-coded allows for sequential access
+
+        // timestamp
+        // warning: this exposes the exact date and time
+        // that the uid was created.
+        timestamp = (new Date().getTime()).toString(base),
+
+        // Prevent same-machine collisions.
+        counter,
+
+        // A few chars to generate distinct ids for different
+        // clients (so different computers are far less
+        // likely to generate the same id)
+        fingerprint = api.fingerprint(),
+
+        // Grab some more chars from Math.random()
+        random = randomBlock() + randomBlock();
+
+        counter = pad(safeCounter().toString(base), blockSize);
+
+      return  (letter + timestamp + counter + fingerprint + random);
+    };
+
+  api.slug = function slug() {
+    var date = new Date().getTime().toString(36),
+      counter,
+      print = api.fingerprint().slice(0,1) +
+        api.fingerprint().slice(-1),
+      random = randomBlock().slice(-2);
+
+      counter = safeCounter().toString(36).slice(-4);
+
+    return date.slice(-2) +
+      counter + print + random;
+  };
+
+  api.globalCount = function globalCount() {
+    // We want to cache the results of this
+    var cache = (function calc() {
+        var i,
+          count = 0;
+
+        for (i in window) {
+          count++;
+        }
+
+        return count;
+      }());
+
+    api.globalCount = function () { return cache; };
+    return cache;
+  };
+
+  api.fingerprint = function browserPrint() {
+    return pad((navigator.mimeTypes.length +
+      navigator.userAgent.length).toString(36) +
+      api.globalCount().toString(36), 4);
+  };
+
+  // don't change anything from here down.
+  if (app.register) {
+    app.register(namespace, api);
+  } else if (typeof module !== 'undefined') {
+    module.exports = api;
+  } else {
+    app[namespace] = api;
+  }
+
+}(this.applitude || this));
+
+},{}],23:[function(require,module,exports){
+var wrappy = require('wrappy')
+module.exports = wrappy(dezalgo)
+
+var asap = require('asap')
+
+function dezalgo (cb) {
+  var sync = true
+  asap(function () {
+    sync = false
+  })
+
+  return function zalgoSafe() {
+    var args = arguments
+    var me = this
+    if (sync)
+      asap(function() {
+        cb.apply(me, args)
+      })
+    else
+      cb.apply(me, args)
+  }
+}
+
+},{"asap":16,"wrappy":43}],24:[function(require,module,exports){
+'use strict'
+
+var assertFn = require('assert-function')
+
+module.exports = Ear
+
+function Ear () {
+  var callbacks = []
+
+  function listeners () {
+    var args = arguments
+    var i = 0
+    var length = callbacks.length
+    for (; i < length; i++) {
+      var callback = callbacks[i]
+      callback.apply(null, args)
+    }
+  }
+
+  listeners.add = function (listener) {
+    assertFn(listener)
+    callbacks.push(listener)
+    return function remove () {
+      var i = 0
+      var length = callbacks.length
+      for (; i < length; i++) {
+        if (callbacks[i] === listener) {
+          callbacks.splice(i, 1)
+          return
+        }
+      }
+    }
+  }
+
+  return listeners
+}
+
+},{"assert-function":19}],25:[function(require,module,exports){
+(function (global){
+var win;
+
+if (typeof window !== "undefined") {
+    win = window;
+} else if (typeof global !== "undefined") {
+    win = global;
+} else if (typeof self !== "undefined"){
+    win = self;
+} else {
+    win = {};
+}
+
+module.exports = win;
+
+}).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
+},{}],26:[function(require,module,exports){
+'use strict';
+module.exports = function (x) {
+	var type = typeof x;
+	return x !== null && (type === 'object' || type === 'function');
+};
+
+},{}],27:[function(require,module,exports){
+exports = module.exports = stringify
+exports.getSerialize = serializer
+
+function stringify(obj, replacer, spaces, cycleReplacer) {
+  return JSON.stringify(obj, serializer(replacer, cycleReplacer), spaces)
+}
+
+function serializer(replacer, cycleReplacer) {
+  var stack = [], keys = []
+
+  if (cycleReplacer == null) cycleReplacer = function(key, value) {
+    if (stack[0] === value) return "[Circular ~]"
+    return "[Circular ~." + keys.slice(0, stack.indexOf(value)).join(".") + "]"
+  }
+
+  return function(key, value) {
+    if (stack.length > 0) {
+      var thisPos = stack.indexOf(this)
+      ~thisPos ? stack.splice(thisPos + 1) : stack.push(this)
+      ~thisPos ? keys.splice(thisPos, Infinity, key) : keys.push(key)
+      if (~stack.indexOf(value)) value = cycleReplacer.call(this, key, value)
+    }
+    else stack.push(value)
+
+    return replacer == null ? value : replacer.call(this, key, value)
+  }
+}
+
+},{}],28:[function(require,module,exports){
+'use strict'
+
+var assert = require('assert-ok')
+var assertEqual = require('assert-equal')
+var dot = require('dot-prop')
+var toArray = require('to-array')
+var last = require('array-last')
+var dezalgo = require('dezalgo')
+var all = require('call-all-fns')
+
+module.exports = Lazy
+
+function Lazy (methods, load) {
+  assert(Array.isArray(methods), 'methods are required')
+  assertEqual(typeof load, 'function', 'load fn is required')
+
+  var api = null
+  var error = null
+  var queue = []
+
+  load(function (err, lib) {
+    error = err
+    api = lib
+    all(queue)(err, lib)
+    queue = null
+  })
+
+  return methods.reduce(function (lazy, method) {
+    dot.set(lazy, method, Deferred(method))
+    return lazy
+  }, {})
+
+  function Deferred (method) {
+    return function deferred () {
+      var args = arguments
+      onReady(function (err, api) {
+        if (!err) return dot.get(api, method).apply(null, args)
+        var callback = last(toArray(args))
+        if (typeof callback === 'function') {
+          return callback(err)
+        }
+      })
+    }
+  }
+
+  function onReady (callback) {
+    callback = dezalgo(callback)
+
+    if (api || error) return callback(error, api)
+    queue.push(callback)
+  }
+}
+
+},{"array-last":13,"assert-equal":18,"assert-ok":20,"call-all-fns":21,"dezalgo":23,"dot-prop":29,"to-array":42}],29:[function(require,module,exports){
+'use strict';
+var isObj = require('is-obj');
+
+module.exports.get = function (obj, path) {
+	if (!isObj(obj) || typeof path !== 'string') {
+		return obj;
+	}
+
+	var pathArr = getPathSegments(path);
+
+	for (var i = 0; i < pathArr.length; i++) {
+		obj = obj[pathArr[i]];
+
+		if (obj === undefined) {
+			break;
+		}
+	}
+
+	return obj;
+};
+
+module.exports.set = function (obj, path, value) {
+	if (!isObj(obj) || typeof path !== 'string') {
+		return;
+	}
+
+	var pathArr = getPathSegments(path);
+
+	for (var i = 0; i < pathArr.length; i++) {
+		var p = pathArr[i];
+
+		if (!isObj(obj[p])) {
+			obj[p] = {};
+		}
+
+		if (i === pathArr.length - 1) {
+			obj[p] = value;
+		}
+
+		obj = obj[p];
+	}
+};
+
+module.exports.delete = function (obj, path) {
+	if (!isObj(obj) || typeof path !== 'string') {
+		return;
+	}
+
+	var pathArr = getPathSegments(path);
+
+	for (var i = 0; i < pathArr.length; i++) {
+		var p = pathArr[i];
+
+		if (i === pathArr.length - 1) {
+			delete obj[p];
+			return;
+		}
+
+		obj = obj[p];
+	}
+};
+
+module.exports.has = function (obj, path) {
+	if (!isObj(obj) || typeof path !== 'string') {
+		return false;
+	}
+
+	var pathArr = getPathSegments(path);
+
+	for (var i = 0; i < pathArr.length; i++) {
+		obj = obj[pathArr[i]];
+
+		if (obj === undefined) {
+			return false;
+		}
+	}
+
+	return true;
+};
+
+function getPathSegments(path) {
+	var pathArr = path.split('.');
+	var parts = [];
+
+	for (var i = 0; i < pathArr.length; i++) {
+		var p = pathArr[i];
+
+		while (p[p.length - 1] === '\\') {
+			p = p.slice(0, -1) + '.';
+			p += pathArr[++i];
+		}
+
+		parts.push(p);
+	}
+
+	return parts;
+}
+
+},{"is-obj":26}],30:[function(require,module,exports){
+'use strict'
+
+var load = require('load-script')
+var window = require('global/window')
+var extend = require('xtend')
+var assert = require('assert-ok')
+var dezalgo = require('dezalgo')
+var Listeners = require('ear')
+var extendQuery = require('query-extend')
+var cuid = require('cuid')
+
+module.exports = loadGlobal
+
+var listeners = {}
+
+function loadGlobal (options, callback) {
+  assert(options, 'options required')
+  assert(options.url, 'url required')
+  assert(options.global, 'global required')
+  assert(callback, 'callback required')
+
+  options = extend(options)
+  callback = dezalgo(callback)
+
+  if (getGlobal(options)) {
+    return callback(null, getGlobal(options))
+  }
+
+  callback = cache(options, callback)
+  if (!callback) return
+
+  if (options.jsonp) {
+    var id = jsonpCallback(options, callback)
+    options.url = extendQuery(options.url, {callback: id})
+  }
+
+  load(options.url, options, function (err) {
+    if (err) return callback(err)
+    if (!options.jsonp) {
+      var library = getGlobal(options)
+      if (!library) return callback(new Error('expected: `window.' + options.global + '`, actual: `' + library + '`'))
+      callback(null, library)
+    }
+  })
+}
+
+function cache (options, callback) {
+  if (!get()) {
+    set(Listeners())
+    get().add(callback)
+    return function onComplete (err, lib) {
+      get()(err, lib)
+      set(Listeners())
+    }
+  }
+
+  get().add(callback)
+  return undefined
+
+  function get () {
+    return listeners[options.global]
+  }
+
+  function set (value) {
+    listeners[options.global] = value
+  }
+}
+
+function getGlobal (options) {
+  return window[options.global]
+}
+
+function jsonpCallback (options, callback) {
+  var id = cuid()
+  window[id] = function jsonpCallback () {
+    callback(null, getGlobal(options))
+    delete window[id]
+  }
+  return id
+}
+
+},{"assert-ok":20,"cuid":22,"dezalgo":23,"ear":24,"global/window":25,"load-script":31,"query-extend":38,"xtend":44}],31:[function(require,module,exports){
+
+module.exports = function load (src, opts, cb) {
+  var head = document.head || document.getElementsByTagName('head')[0]
+  var script = document.createElement('script')
+
+  if (typeof opts === 'function') {
+    cb = opts
+    opts = {}
+  }
+
+  opts = opts || {}
+  cb = cb || function() {}
+
+  script.type = opts.type || 'text/javascript'
+  script.charset = opts.charset || 'utf8';
+  script.async = 'async' in opts ? !!opts.async : true
+  script.src = src
+
+  if (opts.attrs) {
+    setAttributes(script, opts.attrs)
+  }
+
+  if (opts.text) {
+    script.text = '' + opts.text
+  }
+
+  var onend = 'onload' in script ? stdOnEnd : ieOnEnd
+  onend(script, cb)
+
+  // some good legacy browsers (firefox) fail the 'in' detection above
+  // so as a fallback we always set onload
+  // old IE will ignore this and new IE will set onload
+  if (!script.onload) {
+    stdOnEnd(script, cb);
+  }
+
+  head.appendChild(script)
+}
+
+function setAttributes(script, attrs) {
+  for (var attr in attrs) {
+    script.setAttribute(attr, attrs[attr]);
+  }
+}
+
+function stdOnEnd (script, cb) {
+  script.onload = function () {
+    this.onerror = this.onload = null
+    cb(null, script)
+  }
+  script.onerror = function () {
+    // this.onload = null here is necessary
+    // because even IE9 works not like others
+    this.onerror = this.onload = null
+    cb(new Error('Failed to load ' + this.src), script)
+  }
+}
+
+function ieOnEnd (script, cb) {
+  script.onreadystatechange = function () {
+    if (this.readyState != 'complete' && this.readyState != 'loaded') return
+    this.onreadystatechange = null
+    cb(null, script) // there is no way to catch loading errors in IE8
+  }
+}
+
+},{}],32:[function(require,module,exports){
 (function (global){
 /**
  * marked - a markdown parser
@@ -40382,7 +41629,7 @@ if (typeof module !== 'undefined' && typeof exports === 'object') {
 }());
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{}],7:[function(require,module,exports){
+},{}],33:[function(require,module,exports){
 (function(root, factory) {
 if (typeof exports === "object") {
 module.exports = factory(require('angular'));
@@ -43832,7 +45079,383 @@ angular.module('ngMap', []);
 
 return 'ngMap';
 }));
-},{"angular":5}],8:[function(require,module,exports){
+},{"angular":12}],34:[function(require,module,exports){
+'use strict';
+
+module.exports = function split(str) {
+    var a = 1,
+        res = '';
+
+    var parts = str.split('%'),
+        len = parts.length;
+
+    if (len > 0) { res += parts[0]; }
+
+    for (var i = 1; i < len; i++) {
+        if (parts[i][0] === 's' || parts[i][0] === 'd') {
+            var value = arguments[a++];
+            res += parts[i][0] === 'd' ? Math.floor(value) : value;
+        } else if (parts[i][0]) {
+            res += '%' + parts[i][0];
+        } else {
+            i++;
+            res += '%' + parts[i][0];
+        }
+
+        res += parts[i].substring(1);
+    }
+
+    return res;
+};
+
+},{}],35:[function(require,module,exports){
+'use strict'
+
+var isObject = require('isobject')
+var safeStringify = require('json-stringify-safe')
+
+module.exports = function print (value) {
+  var toString = isJson(value) ? stringify : String
+  return toString(value)
+}
+
+function isJson (value) {
+  return isObject(value) || Array.isArray(value)
+}
+
+function stringify (value) {
+  return safeStringify(value, null, '')
+}
+
+},{"isobject":37,"json-stringify-safe":27}],36:[function(require,module,exports){
+module.exports = Array.isArray || function (arr) {
+  return Object.prototype.toString.call(arr) == '[object Array]';
+};
+
+},{}],37:[function(require,module,exports){
+/*!
+ * isobject <https://github.com/jonschlinkert/isobject>
+ *
+ * Copyright (c) 2014-2015, Jon Schlinkert.
+ * Licensed under the MIT License.
+ */
+
+'use strict';
+
+var isArray = require('isarray');
+
+module.exports = function isObject(o) {
+  return o != null && typeof o === 'object' && !isArray(o);
+};
+
+},{"isarray":36}],38:[function(require,module,exports){
+!function(glob) {
+
+  var queryToObject = function(query) {
+    var obj = {};
+    if (!query) return obj;
+    each(query.split('&'), function(val) {
+      var pieces = val.split('=');
+      var key = parseKey(pieces[0]);
+      var keyDecoded = decodeURIComponent(key.val);
+      var valDecoded = pieces[1] && decodeURIComponent(pieces[1]);
+
+      if (key.type === 'array') {
+        if (!obj[keyDecoded]) obj[keyDecoded] = [];
+        obj[keyDecoded].push(valDecoded);
+      } else if (key.type === 'string') {
+        obj[keyDecoded] = valDecoded;
+      }
+    });
+    return obj;
+  };
+
+  var objectToQuery = function(obj) {
+    var pieces = [], encodedKey;
+    for (var k in obj) {
+      if (!obj.hasOwnProperty(k)) continue;
+      if (typeof obj[k] === 'undefined') {
+        pieces.push(encodeURIComponent(k));
+        continue;
+      }
+      encodedKey = encodeURIComponent(k);
+      if (isArray(obj[k])) {
+        each(obj[k], function(val) {
+          pieces.push(encodedKey + '[]=' + encodeURIComponent(val));
+        });
+        continue;
+      }
+      pieces.push(encodedKey + '=' + encodeURIComponent(obj[k]));
+    }
+    return pieces.length ? ('?' + pieces.join('&')) : '';
+  };
+
+  // for now we will only support string and arrays
+  var parseKey = function(key) {
+    var pos = key.indexOf('[');
+    if (pos === -1) return { type: 'string', val: key };
+    return { type: 'array', val: key.substr(0, pos) };
+  };
+
+  var isArray = function(val) {
+    return Object.prototype.toString.call(val) === '[object Array]';
+  };
+
+  var extract = function(url) {
+    var pos = url.lastIndexOf('?');
+    var hasQuery = pos !== -1;
+    var base = void 0;
+
+    if (hasQuery && pos > 0) {
+      base = url.substring(0, pos);
+    } else if (!hasQuery && (url && url.length > 0)) {
+      base = url;
+    }
+
+    return {
+      base: base,
+      query: hasQuery ? url.substring(pos+1) : void 0
+    };
+  };
+
+  // thanks raynos!
+  // https://github.com/Raynos/xtend
+  var extend = function() {
+    var target = {};
+    for (var i = 0; i < arguments.length; i++) {
+      var source = arguments[i];
+      for (var key in source) {
+        if (source.hasOwnProperty(key)) {
+          target[key] = source[key];
+        }
+      }
+    }
+    return target;
+  };
+
+  var queryExtend = function() {
+    var args = Array.prototype.slice.call(arguments, 0);
+    var asObject = args[args.length-1] === true;
+    var base = '';
+
+    if (!args.length) {
+      return base;
+    }
+
+    if (asObject) {
+      args.pop();
+    }
+
+    var normalized = map(args, function(param) {
+      if (typeof param === 'string') {
+        var extracted = extract(param);
+        if (extracted.base) base = extracted.base;
+        return queryToObject(extracted.query);
+      }
+      return param;
+    });
+
+    if (asObject) {
+      return extend.apply({}, normalized);
+    } else {
+      return base + objectToQuery(extend.apply({}, normalized));
+    }
+
+  };
+    
+  var each = function(arr, fn) {
+    for (var i = 0, l = arr.length; i < l; i++) {
+      fn(arr[i], i);
+    }
+  };
+
+  var map = function(arr, fn) {
+    var res = [];
+    for (var i = 0, l = arr.length; i < l; i++) {
+      res.push( fn(arr[i], i) );
+    } 
+    return res;     
+  };
+
+  if (typeof module !== 'undefined' && module.exports) {
+    // Node.js / browserify
+    module.exports = queryExtend;
+  } else if  (typeof define === 'function' && define.amd) {
+    // require.js / AMD
+    define(function() {
+      return queryExtend;
+    });
+  } else {
+    // <script>
+    glob.queryExtend = queryExtend;
+  }
+
+}(this);
+},{}],39:[function(require,module,exports){
+'use strict'
+
+var printf = require('pff')
+var toArray = require('to-array')
+var regex = /%[sdj]/
+
+module.exports = function format (message) {
+  if (regex.test(message)) return printf.apply(null, arguments)
+  return toArray(arguments).join(' ')
+}
+
+},{"pff":34,"to-array":42}],40:[function(require,module,exports){
+'use strict'
+
+var assign = require('xtend/mutable')
+var dot = require('dot-prop')
+
+var methods = stripeErrback.methods = {
+  async: [
+    'card.createToken',
+    'bankAccount.createToken',
+    'piiData.createToken',
+    'bitcoinReceiver.createReceiver',
+    'bitcoinReceiver.pollReceiver',
+    'bitcoinReceiver.getReceiver'
+  ],
+  sync: [
+    'setPublishableKey',
+    'card.validateCardNumber',
+    'card.validateExpiry',
+    'card.validateCVC',
+    'card.cardType',
+    'bankAccount.validateRoutingNumber',
+    'bankAccount.validateAccountNumber',
+    'bitcoinReceiver.cancelReceiverPoll'
+  ]
+}
+
+module.exports = stripeErrback
+
+function stripeErrback (Stripe) {
+  if (typeof Stripe !== 'function') throw new Error('Stripe.js must be provided')
+
+  var stripe = {}
+
+  methods.async.forEach(function (method) {
+    var names = method.split('.')
+    var receiverName = names[0]
+    var methodName = names[1]
+    dot.set(stripe, method, toErrback(methodName, Stripe[receiverName]))
+  })
+
+  methods.sync.forEach(function (method) {
+    dot.set(stripe, method, dot.get(Stripe, method))
+  })
+
+  return stripe
+}
+
+function toErrback (method, receiver) {
+  return function errback () {
+    var args = Array.prototype.slice.call(arguments)
+    var callback = args.pop()
+
+    receiver[method].apply(receiver, args.concat(function onStripe (status, response) {
+      if (response.error) return callback(assign(new Error(), response.error, {status: status}))
+      callback(null, response)
+    }))
+  }
+}
+
+},{"dot-prop":41,"xtend/mutable":45}],41:[function(require,module,exports){
+arguments[4][4][0].apply(exports,arguments)
+},{"dup":4,"is-obj":26}],42:[function(require,module,exports){
+module.exports = toArray
+
+function toArray(list, index) {
+    var array = []
+
+    index = index || 0
+
+    for (var i = index || 0; i < list.length; i++) {
+        array[i - index] = list[i]
+    }
+
+    return array
+}
+
+},{}],43:[function(require,module,exports){
+// Returns a wrapper function that returns a wrapped callback
+// The wrapper function should do some stuff, and return a
+// presumably different callback function.
+// This makes sure that own properties are retained, so that
+// decorations and such are not lost along the way.
+module.exports = wrappy
+function wrappy (fn, cb) {
+  if (fn && cb) return wrappy(fn)(cb)
+
+  if (typeof fn !== 'function')
+    throw new TypeError('need wrapper function')
+
+  Object.keys(fn).forEach(function (k) {
+    wrapper[k] = fn[k]
+  })
+
+  return wrapper
+
+  function wrapper() {
+    var args = new Array(arguments.length)
+    for (var i = 0; i < args.length; i++) {
+      args[i] = arguments[i]
+    }
+    var ret = fn.apply(this, args)
+    var cb = args[args.length-1]
+    if (typeof ret === 'function' && ret !== cb) {
+      Object.keys(cb).forEach(function (k) {
+        ret[k] = cb[k]
+      })
+    }
+    return ret
+  }
+}
+
+},{}],44:[function(require,module,exports){
+module.exports = extend
+
+var hasOwnProperty = Object.prototype.hasOwnProperty;
+
+function extend() {
+    var target = {}
+
+    for (var i = 0; i < arguments.length; i++) {
+        var source = arguments[i]
+
+        for (var key in source) {
+            if (hasOwnProperty.call(source, key)) {
+                target[key] = source[key]
+            }
+        }
+    }
+
+    return target
+}
+
+},{}],45:[function(require,module,exports){
+module.exports = extend
+
+var hasOwnProperty = Object.prototype.hasOwnProperty;
+
+function extend(target) {
+    for (var i = 1; i < arguments.length; i++) {
+        var source = arguments[i]
+
+        for (var key in source) {
+            if (hasOwnProperty.call(source, key)) {
+                target[key] = source[key]
+            }
+        }
+    }
+
+    return target
+}
+
+},{}],46:[function(require,module,exports){
 'use strict';
 
 var _angular = require('angular');
@@ -43858,6 +45481,8 @@ require('ngmap');
 var _angularToastr = require('angular-toastr');
 
 var _angularToastr2 = _interopRequireDefault(_angularToastr);
+
+require('angular-stripe');
 
 require('./config/app.templates');
 
@@ -43885,17 +45510,19 @@ require('./locales');
 
 require('./local');
 
+require('./stripe');
+
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
 // Create and bootstrap application
 
-// Import our app functionaity
-var requires = ['ngMap', 'ui.router', 'templates', 'app.layout', 'app.components', 'app.home', 'app.contact', 'app.profile', 'app.article', 'app.services', 'app.auth', 'app.settings', 'app.editor', 'app.locales', 'app.local', 'toastr'];
+/* import 'ngMap'; */
+// Import our templates file (generated by Gulp)
+var requires = ['ngMap', 'ui.router', 'templates', 'app.layout', 'app.components', 'app.home', 'app.contact', 'app.profile', 'app.article', 'app.services', 'app.auth', 'app.settings', 'app.editor', 'app.locales', 'app.local', 'toastr', 'angular-stripe', 'app.stripe'];
 
 // Mount on window for testing
 
-/* import 'ngMap'; */
-// Import our templates file (generated by Gulp)
+// Import our app functionaity
 
 
 // Import our app config files
@@ -43911,7 +45538,7 @@ _angular2.default.bootstrap(document, ['app'], {
   strictDi: true
 });
 
-},{"./article":13,"./auth":16,"./components":24,"./config/app.config":27,"./config/app.constants":28,"./config/app.run":29,"./config/app.templates":30,"./contact":34,"./editor":37,"./home":40,"./layout":43,"./local":44,"./locales":47,"./profile":51,"./services":59,"./settings":66,"angular":5,"angular-toastr":2,"angular-ui-router":3,"ngmap":7}],9:[function(require,module,exports){
+},{"./article":51,"./auth":54,"./components":62,"./config/app.config":65,"./config/app.constants":66,"./config/app.run":67,"./config/app.templates":68,"./contact":72,"./editor":75,"./home":78,"./layout":81,"./local":82,"./locales":85,"./profile":89,"./services":97,"./settings":105,"./stripe":108,"angular":12,"angular-stripe":5,"angular-toastr":9,"angular-ui-router":10,"ngmap":33}],47:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -43966,7 +45593,7 @@ var ArticleActions = {
 
 exports.default = ArticleActions;
 
-},{}],10:[function(require,module,exports){
+},{}],48:[function(require,module,exports){
 'use strict';
 
 ArticleConfig.$inject = ["$stateProvider"];
@@ -43996,7 +45623,7 @@ function ArticleConfig($stateProvider) {
 
 exports.default = ArticleConfig;
 
-},{}],11:[function(require,module,exports){
+},{}],49:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -44078,7 +45705,7 @@ var ArticleCtrl = function () {
 
 exports.default = ArticleCtrl;
 
-},{"marked":6}],12:[function(require,module,exports){
+},{"marked":32}],50:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -44111,7 +45738,7 @@ var Comment = {
 
 exports.default = Comment;
 
-},{}],13:[function(require,module,exports){
+},{}],51:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -44157,7 +45784,7 @@ articleModule.component('comment', _comment2.default);
 
 exports.default = articleModule;
 
-},{"./article-actions.component":9,"./article.config":10,"./article.controller":11,"./comment.component":12,"angular":5}],14:[function(require,module,exports){
+},{"./article-actions.component":47,"./article.config":48,"./article.controller":49,"./comment.component":50,"angular":12}],52:[function(require,module,exports){
 'use strict';
 
 AuthConfig.$inject = ["$stateProvider", "$httpProvider"];
@@ -44234,7 +45861,7 @@ function AuthConfig($stateProvider, $httpProvider) {
 
 exports.default = AuthConfig;
 
-},{}],15:[function(require,module,exports){
+},{}],53:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -44325,7 +45952,7 @@ var AuthCtrl = function () {
 
 exports.default = AuthCtrl;
 
-},{}],16:[function(require,module,exports){
+},{}],54:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -44365,7 +45992,7 @@ authModule.controller('SocialCtrl', _social2.default);
 
 exports.default = authModule;
 
-},{"./auth.config":14,"./auth.controller":15,"./social.controller":17,"angular":5}],17:[function(require,module,exports){
+},{"./auth.config":52,"./auth.controller":53,"./social.controller":55,"angular":12}],55:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -44395,7 +46022,7 @@ SocialCtrl.$inject = ["User", "$state"];
 
 exports.default = SocialCtrl;
 
-},{}],18:[function(require,module,exports){
+},{}],56:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -44498,7 +46125,7 @@ var ArticleList = {
 
 exports.default = ArticleList;
 
-},{}],19:[function(require,module,exports){
+},{}],57:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -44514,7 +46141,7 @@ var ArticleMeta = {
 
 exports.default = ArticleMeta;
 
-},{}],20:[function(require,module,exports){
+},{}],58:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -44529,7 +46156,7 @@ var ArticlePreview = {
 
 exports.default = ArticlePreview;
 
-},{}],21:[function(require,module,exports){
+},{}],59:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -44582,7 +46209,7 @@ var ListPagination = {
 
 exports.default = ListPagination;
 
-},{}],22:[function(require,module,exports){
+},{}],60:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -44647,7 +46274,7 @@ var FavoriteBtn = {
 
 exports.default = FavoriteBtn;
 
-},{}],23:[function(require,module,exports){
+},{}],61:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -44713,7 +46340,7 @@ var FollowBtn = {
 
 exports.default = FollowBtn;
 
-},{}],24:[function(require,module,exports){
+},{}],62:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -44778,7 +46405,7 @@ componentsModule.component('listPagination', _listPagination2.default);
 
 exports.default = componentsModule;
 
-},{"./article-helpers/article-list.component":18,"./article-helpers/article-meta.component":19,"./article-helpers/article-preview.component":20,"./article-helpers/list-pagination.component":21,"./buttons/favorite-btn.component":22,"./buttons/follow-btn.component":23,"./list-errors.component":25,"./show-authed.directive":26,"angular":5}],25:[function(require,module,exports){
+},{"./article-helpers/article-list.component":56,"./article-helpers/article-meta.component":57,"./article-helpers/article-preview.component":58,"./article-helpers/list-pagination.component":59,"./buttons/favorite-btn.component":60,"./buttons/follow-btn.component":61,"./list-errors.component":63,"./show-authed.directive":64,"angular":12}],63:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -44793,7 +46420,7 @@ var ListErrors = {
 
 exports.default = ListErrors;
 
-},{}],26:[function(require,module,exports){
+},{}],64:[function(require,module,exports){
 'use strict';
 
 ShowAuthed.$inject = ["User"];
@@ -44832,7 +46459,7 @@ function ShowAuthed(User) {
 
 exports.default = ShowAuthed;
 
-},{}],27:[function(require,module,exports){
+},{}],65:[function(require,module,exports){
 'use strict';
 
 AppConfig.$inject = ["$httpProvider", "$stateProvider", "$locationProvider", "$urlRouterProvider"];
@@ -44872,7 +46499,7 @@ function AppConfig($httpProvider, $stateProvider, $locationProvider, $urlRouterP
 
 exports.default = AppConfig;
 
-},{"./auth.interceptor":31}],28:[function(require,module,exports){
+},{"./auth.interceptor":69}],66:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -44887,7 +46514,7 @@ var AppConstants = {
 
 exports.default = AppConstants;
 
-},{}],29:[function(require,module,exports){
+},{}],67:[function(require,module,exports){
 'use strict';
 
 AppRun.$inject = ["AppConstants", "$rootScope"];
@@ -44916,7 +46543,7 @@ function AppRun(AppConstants, $rootScope) {
 
 exports.default = AppRun;
 
-},{}],30:[function(require,module,exports){
+},{}],68:[function(require,module,exports){
 "use strict";
 
 angular.module("templates", []).run(["$templateCache", function ($templateCache) {
@@ -44932,12 +46559,14 @@ angular.module("templates", []).run(["$templateCache", function ($templateCache)
   $templateCache.put("home/home.html", "<header id=\"head\" class=\"head\">\n    <div class=\"logo gridlogo\">\n      <img src=\"img/logo.png\"/>\n    </div>\n    <span class=\"slogan\">Como En Casa</span>\n</header>\n<section id=\"sections\" class=\"sections\">\n  <!-- information or sections inside the section with grey background -->\n  <section id=\"content\" class=\"content\" >\n      <!-- Content of mains section -->\n      <section id=\"main\">\n              <div class=\"sectionHead\">\n              <h3>HOME</h3>\n              </div>\n              <div>\n                  <article>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Aliquam eget malesuada ante, ut iaculis lectus. Suspendisse sodales ac justo eget ultrices. Donec ipsum urna, eleifend et purus a, aliquam convallis arcu. Suspendisse pretium massa ante, ac aliquam ligula placerat scelerisque. Aenean lacus diam, rhoncus non fringilla ac, luctus quis magna. Aliquam non convallis massa. In non nisl sagittis, iaculis leo sit amet, rhoncus sem. Duis nec ex vel sapien convallis tristique. Vivamus gravida risus et augue tempus auctor. Pellentesque nec orci sit amet magna viverra imperdiet.\n                          \n                          Interdum et malesuada fames ac ante ipsum primis in faucibus. Nunc in ullamcorper ex. Pellentesque sed bibendum urna, non interdum ex. Curabitur sagittis sem augue, ut tincidunt ex tincidunt nec. Suspendisse sodales elit non ipsum pharetra molestie. Nunc molestie porttitor turpis, id porta diam. Curabitur vitae porttitor massa. Vestibulum in ipsum magna. Aenean ut venenatis tellus, eget mattis ante. Nunc pretium velit et nibh volutpat fringilla. Interdum et malesuada fames ac ante ipsum primis in faucibus. Nullam aliquam lacus at enim luctus vestibulum. In pellentesque ante lectus, facilisis convallis arcu pellentesque et. Ut consectetur egestas massa, et maximus tellus condimentum et. Donec pulvinar cursus erat, id faucibus est auctor in.\n                  </article>\n              </div>\n      </section>\n      <!-- Content of locals section -->\n      <section id=\"locals\">\n              <div class=\"sectionHead\">\n                  <h3>LOCALS</h3>\n                  <span class=\"slogan\">Here you can check by categories the diferents services</span>\n              </div>\n              <section id=\"categoriaslocals\">\n                  <div class=\"gridlocals\">\n                      <nav class=\"navbarlocals\">\n                          <ul>\n                              <li><a ui-sref=\"app.locales\" class=\"active\">Todo</a></li>\n                          </ul>      \n                      </nav>\n                      <section class=\"cat\" ng-repeat=\"categoria in $ctrl.categorias\">\n                        <a ui-sref=\"app.{{categoria.cat}}\">\n                        <div>\n                            <img src=\"{{categoria.foto}}\"/>\n                        </div>\n                            <label>{{categoria.cat}}</label>\n                        </a>\n                     </section>\n                  </div>\n              </section>\n      </section>\n      <!-- Content of About section -->\n      <section id=\"about\">\n              <div class=\"sectionHead\">\n                  <h3>ABOUT</h3>\n              </div>\n              <div>\n                  <article>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Aliquam eget malesuada ante, ut iaculis lectus. Suspendisse sodales ac justo eget ultrices. Donec ipsum urna, eleifend et purus a, aliquam convallis arcu. Suspendisse pretium massa ante, ac aliquam ligula placerat scelerisque. Aenean lacus diam, rhoncus non fringilla ac, luctus quis magna. Aliquam non convallis massa. In non nisl sagittis, iaculis leo sit amet, rhoncus sem. Duis nec ex vel sapien convallis tristique. Vivamus gravida risus et augue tempus auctor. Pellentesque nec orci sit amet magna viverra imperdiet.\n                          \n                          Interdum et malesuada fames ac ante ipsum primis in faucibus. Nunc in ullamcorper ex. Pellentesque sed bibendum urna, non interdum ex. Curabitur sagittis sem augue, ut tincidunt ex tincidunt nec. Suspendisse sodales elit non ipsum pharetra molestie. Nunc molestie porttitor turpis, id porta diam. Curabitur vitae porttitor massa. Vestibulum in ipsum magna. Aenean ut venenatis tellus, eget mattis ante. Nunc pretium velit et nibh volutpat fringilla. Interdum et malesuada fames ac ante ipsum primis in faucibus. Nullam aliquam lacus at enim luctus vestibulum. In pellentesque ante lectus, facilisis convallis arcu pellentesque et. Ut consectetur egestas massa, et maximus tellus condimentum et. Donec pulvinar cursus erat, id faucibus est auctor in.\n                          \n                          Maecenas fringilla suscipit turpis ac tempor. Morbi sed lorem ornare, egestas diam quis, feugiat elit. Phasellus non leo nulla. Nunc eget commodo risus, quis suscipit risus. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Ut tempus elementum finibus. Quisque lobortis quam vel nunc semper, gravida tempus ipsum pretium. Nullam dapibus vulputate nisl at malesuada. Morbi lectus felis, elementum a venenatis eleifend, facilisis quis sapien. In hac habitasse platea dictumst. Suspendisse id arcu neque. Pellentesque eget nulla eros.\n                          \n                          Nunc est mi, dictum ac molestie nec, venenatis a justo. Quisque porta congue nibh ac hendrerit. Aenean interdum felis magna, sed rhoncus lorem semper ut. Mauris leo est, fringilla id rutrum id, efficitur eu mauris. Donec nisi dui, pulvinar non sagittis non, molestie quis odio. Praesent dictum justo molestie velit feugiat eleifend. Quisque sed tincidunt nibh. Mauris pharetra, purus et sagittis placerat, massa leo gravida nulla, maximus luctus magna sem vel justo. Nulla a mattis leo. Phasellus orci est, rhoncus sit amet eros quis, porttitor commodo justo. Sed vitae tincidunt neque, a vestibulum nulla.\n                          \n                          In ac mattis erat. Fusce at nulla sapien. In hac habitasse platea dictumst. Phasellus id lorem ut ipsum blandit tristique nec ac erat. Etiam luctus ipsum nec tincidunt vulputate. Class aptent taciti sociosqu ad litora torquent per conubia nostra, per inceptos himenaeos. Donec euismod ultrices mi a posuere. Maecenas malesuada malesuada mauris, eget ultricies ex sollicitudin id. Cras quis venenatis purus. Aenean posuere nisi consectetur quam convallis aliquet. Vivamus in dui in enim scelerisque auctor. Etiam sapien turpis, feugiat at sem et, ornare consectetur ante.\n                          \n                  </article>\n              </div>\n      </section>\n  </section>\n</section>\n");
   $templateCache.put("layout/app-view.html", "<app-header></app-header>\n\n<div ui-view></div>\n\n<app-footer></app-footer>\n");
   $templateCache.put("layout/footer.html", "<footer class=\"footer\">\n  <p>Proyecto ComoEnCasa 2ºDAW- Carlos y Oscar 2017-18</p>\n </footer>\n</body>\n</html>");
-  $templateCache.put("layout/header.html", "<nav id=\"navbar\">\n  <div>\n    <!-- loged out users -->\n    <ul show-authed=\"false\">\n      <li><a ui-sref-active=\"active\" ui-sref=\"app.home\">HOME</a></li>\n      <li><a href=\"#!/#locals\">LOCALS</a></li>\n      <li><a href=\"#!/#about\">ABOUT US</a></li>\n      <li><a ui-sref-active=\"active\" ui-sref=\"app.contact\">CONTACT</a></li>\n      <li><a ui-sref-active=\"active\" ui-sref=\"app.register\">SIGN UP</a></li>\n      <li><a ui-sref-active=\"active\" ui-sref=\"app.login\">LOG IN</a></li>\n      <li><a href=\"http://localhost:3000/api/twitter\" class=\"a-fontAwesome fa fa-twitter-square\" aria-hidden=\"true\"></a></li>\n      <li><a href=\"http://localhost:3000/api/facebook\" class=\"a-fontAwesome fa fa-facebook-official\" aria-hidden=\"true\"></a></li>\n     \n    </ul>\n\n    <!-- loged in users -->\n    <ul show-authed=\"true\">\n      <li><a ui-sref-active=\"active\" ui-sref=\"app.home\">HOME</a></li>\n      <li><a href=\"#!/#locals\">LOCALS</a></li>\n      <li><a href=\"#!/#about\">ABOUT US</a></li>\n      <li><a ui-sref-active=\"active\" ui-sref=\"app.contact\">CONTACT</a></li>\n      <li><a\n        ui-sref-active=\"active\"\n        ui-sref=\"app.profile.main({ username: $ctrl.currentUser.username})\">\n        <img width=\"35px\" height=\"35px\" ng-src=\"{{$ctrl.currentUser.image}}\"><img>{{ $ctrl.currentUser.username }}     \n      </a></li>\n      <li><a ng-click=\"$ctrl.logout()\">LOG OUT</a></li>\n    </ul>\n  </div>\n</nav>");
-  $templateCache.put("local/local.html", "<link rel=\"stylesheet\" href=\"style/detail_style.css\">\n<section id=\"sections\" class=\"sections\">\n  <!-- information or sections inside the section with grey background -->\n  <section id=\"content\" class=\"content\" >\n      <!-- Content of mains section -->\n      <section id=\"main\">\n  <!-- Banner for title, action buttons -->\n  <div class=\"banner\">\n    <div class=\"container\">\n      <a ui-sref=\"app.{{$ctrl.local.categorias.categoria}}\"><p> <- Back</p></a>\n      <h3 ng-bind=\"::$ctrl.local.nombre\"></h3>\n      <br>\n      <h6>{{$ctrl.local.direccion}}, {{$ctrl.local.poblacion}}, {{$ctrl.local.provincia}} <a href=\"\" ng-click=\"gotoAnchor(\'gmaps\')\")>(gmaps)</a></h6>\n      <h6> <i class=\"fa fa-phone\" aria-hidden=\"true\"></i> {{$ctrl.local.telf}}</h6>\n      <div class=\"detail_div\">\n        <div class=\"slider_details\">\n            <img src=\"https://www.wien.info/media/images/41993-das-loft-sofitel-19to1.jpeg\" alt=\"restaurant elite\">\n        </div>\n      </div>\n      <div class=\"detail_div\">\n        <div class=\"info_local\">\n          <div class=\"box\">Nombre: </div>\n          <div class=\"box\" ng-bind=\"::$ctrl.local.nombre\"></div>\n          <div class=\"box\">Telefono: </div>\n          <div class=\"box\" ng-bind=\"::$ctrl.local.telf\"></div>\n          <div class=\"box\">Direccion: </div>\n          <div class=\"box\" ng-bind=\"::$ctrl.local.direccion\"></div>\n          <div class=\"box\">Poblacion: </div>\n          <div class=\"box\" ng-bind=\"::$ctrl.local.poblacion\"></div>\n          <div class=\"box\">Provincia: </div>\n          <div class=\"box\" ng-bind=\"::$ctrl.local.provincia\"></div>\n        </div>\n      </div>\n      <div class=\"article-meta\">\n        <!-- Show author info + favorite & follow buttons -->\n        <article-actions article=\"$ctrl.article\"></article-actions>\n      </div>\n      <div id=\"anchorgmaps\">\n        <ng-map center=\"[{{$ctrl.local.latitud}}, {{$ctrl.local.longitud}}]\" zoom=\"13\">\n          <marker position=\"{{$ctrl.local.latitud}}, {{$ctrl.local.longitud}}\"></marker>\n          <!-- <marker position=\"current-location\"></marker> -->\n          <directions\n            draggable=\"true\"\n            travel-mode=\"DRIVING\"\n            origin=\"current-location\"\n            destination=\"{{$ctrl.local.direccion}}, {{$ctrl.local.poblacion}}, {{$ctrl.local.provincia}}, Spain\">\n           <!--  destination=\"Pare Luis Colomer 11, Ontinyent , Comunidad Valeciana, Spain\"> -->\n          </directions>\n        </ng-map>\n      </div>\n    </div>\n  </div>\n  </section>\n  </section>\n  </section>");
+  $templateCache.put("layout/header.html", "<nav id=\"navbar\">\n  <div>\n    <!-- loged out users -->\n    <ul show-authed=\"false\">\n      <li><a ui-sref-active=\"active\" ui-sref=\"app.home\">HOME</a></li>\n      <li><a href=\"#!/#locals\">LOCALS</a></li>\n      <li><a href=\"#!/#about\">ABOUT US</a></li>\n      <li><a ui-sref-active=\"active\" ui-sref=\"app.contact\">CONTACT</a></li>\n      <li><a ui-sref-active=\"active\" ui-sref=\"app.register\">SIGN UP</a></li>\n      <li><a ui-sref-active=\"active\" ui-sref=\"app.login\">LOG IN</a></li>\n      <li><a href=\"http://localhost:3000/api/twitter\" class=\"a-fontAwesome fa fa-twitter-square\" aria-hidden=\"true\"></a></li>\n      <li><a href=\"http://localhost:3000/api/facebook\" class=\"a-fontAwesome fa fa-facebook-official\" aria-hidden=\"true\"></a></li>\n    </ul>\n\n    <!-- loged in users -->\n    <ul show-authed=\"true\">\n      <li><a ui-sref-active=\"active\" ui-sref=\"app.home\">HOME</a></li>\n      <li><a href=\"#!/#locals\">LOCALS</a></li>\n      <li><a href=\"#!/#about\">ABOUT US</a></li>\n      <li><a ui-sref-active=\"active\" ui-sref=\"app.contact\">CONTACT</a></li>\n      <li><a\n        ui-sref-active=\"active\"\n        ui-sref=\"app.profile.main({ username: $ctrl.currentUser.username})\">\n        <img width=\"35px\" height=\"35px\" ng-src=\"{{$ctrl.currentUser.image}}\"><img>{{ $ctrl.currentUser.username }}     \n      </a></li>\n      <li><a ui-sref-active=\"active\" ui-sref=\"app.shopping\" class=\" a-fontAwesome fa fa-shopping-cart\"></a></li>\n      <li><a ng-click=\"$ctrl.logout()\">LOG OUT</a></li>\n    </ul>\n  </div>\n</nav>");
+  $templateCache.put("local/local.html", "<link rel=\"stylesheet\" href=\"style/locales_style.css\">\n<link rel=\"stylesheet\" href=\"style/detail_style.css\">\n\n<section id=\"sections\" class=\"sections\">\n  <!-- information or sections inside the section with grey background -->\n  <section id=\"content\" class=\"content\" >\n      <!-- Content of mains section -->\n      <section id=\"main\">\n  <!-- Banner for title, action buttons -->\n  <div class=\"banner\">\n    <div class=\"container\">\n      <a ui-sref=\"app.{{$ctrl.local.categorias.categoria}}\"><p> <- Back</p></a>\n      <h3 ng-bind=\"::$ctrl.local.nombre\"></h3>\n      <br>\n      <h6>{{$ctrl.local.direccion}}, {{$ctrl.local.poblacion}}, {{$ctrl.local.provincia}} <a href=\"\" ng-click=\"gotoAnchor(\'gmaps\')\")>(gmaps)</a></h6>\n      <h6> <i class=\"fa fa-phone\" aria-hidden=\"true\"></i> {{$ctrl.local.telf}}</h6>\n      <div class=\"detail_div\">\n        <div class=\"slider_details\">\n            <img src=\"https://www.wien.info/media/images/41993-das-loft-sofitel-19to1.jpeg\" alt=\"restaurant elite\">\n        </div>\n      </div>\n      <h3 class=\"menus\">Menus para elegir</h3>\n      <div class=\"gridlist\">\n        <div class=\"listado\">\n            <ul>\n                <li class=\"list\"  ng-repeat=\"producto in $ctrl.productos\" >\n                  <a>\n                    <section id=\"gridcardlocal\">\n                        <div id=\"imagenlocal\">\n                            <img src=\"{{producto.foto}}\">\n                        </div>\n                        <div id=\"desclocal\">\n                            <label>Nombre:&nbsp;&nbsp;&nbsp;<span class=\"menucontent\">{{producto.nombre}}</span></label><br>\n                            <label>Descripcion:&nbsp;&nbsp;&nbsp;<span class=\"menucontent\">{{producto.descripcion}}</span></label>\n                            <h3><p>{{producto.price}}</p></h3>\n                            <h3><button ng-click=\"$ctrl.addCart(producto)\">Añadir al carrito</button></h3>\n                        </div>\n                    </section>\n                </a>\n                </li>\n            </ul>\n        </div>\n        </div>\n      <div id=\"anchorgmaps\">\n        <ng-map center=\"[{{$ctrl.local.latitud}}, {{$ctrl.local.longitud}}]\" zoom=\"13\">\n          <marker position=\"{{$ctrl.local.latitud}}, {{$ctrl.local.longitud}}\"></marker>\n          <!-- <marker position=\"current-location\"></marker> -->\n          <directions\n            draggable=\"true\"\n            travel-mode=\"DRIVING\"\n            origin=\"current-location\"\n            destination=\"{{$ctrl.local.direccion}}, {{$ctrl.local.poblacion}}, {{$ctrl.local.provincia}}, Spain\">\n           <!--  destination=\"Pare Luis Colomer 11, Ontinyent , Comunidad Valeciana, Spain\"> -->\n          </directions>\n        </ng-map>\n      </div>\n    </div>\n  </div>\n  </section>\n  </section>\n  </section>");
   $templateCache.put("locales/locales.view.html", "<link rel=\"stylesheet\" href=\"style/locales_style.css\">\n<section id=\"sections\" class=\"sections\">\n    <section id=\"content\" class=\"content\" >\n        <section id=\"locals\" ng-show=\"vm.locals\">\n            <div class=\"sectionHead\">\n                <h3>{{vm.category | uppercase}}</h3>\n                <span class=\"slogan\">List of all {{vm.category}} in the app</span>\n            </div>\n        </section>\n        <section id=\"listlocals\">\n            <div class=\"gridlist\">\n                <div class=\"search\">\n                   <label><span class=\"searchtext\">Search: </span><input ng-model=\"search.$\"></label>\n                </div>\n                <div class=\"maps\">\n                        <ng-map default-style=\"true\" center=\"current-location\" zoom=\"10\">\n                                <marker id=\"mark{{$index}}\" position=\"{{local.latitud}},{{local.longitud}}\"\n                                  on-click=\"map.showInfoWindow(event, \'infow{{local.nombre}}{{$index}}\')\" ng-repeat=\"local in vm.locals | filter:search\">\n                                </marker>\n                                <info-window id=\"infow{{local.nombre}}{{$index}}\" max-width=\"200\" ng-repeat=\"local in vm.locals\" position=\"current-location\">\n                                  <div>\n                                    <div id=\"siteNotice\"></div>\n                                    <h1 id=\"firstHeading\">{{local.nombre}}</h1>\n                                    <div id=\"bodyContent\">\n                                        <a ui-sref=\"app.local({id: \'{{local._id}}\'})\"> \n                                            <img height=\"100\" width=\"150\" src=\"img/locales/{{local.categorias.subcategoria[0]}}.jpg\">\n                                        </a>\n                                        <p><label>Dir: </label>{{local.direccion}} <br>\n                                            <label>Localidad: </label>{{local.poblacion}} <br>\n                                            <label>Provincia: </label>{{local.provincia}} <br>\n                                            <label>Telf: </label>{{local.telf}}\n                                        </p>\n                                    </div>\n                                  </div>\n                                </info-window>\n                              </ng-map>\n                </div>\n                <div class=\"listado\">\n                    <ul>\n                        <li class=\"list\" ng-repeat=\"local in vm.items | filter:search:strict\">\n                        <a ui-sref=\"app.local({id: \'{{local._id}}\'})\">\n                                <section id=\"gridcardlocal\">\n                                    <div id=\"imagenlocal\">\n                                        <img src=\"img/locales/{{local.categorias.subcategoria[0]}}.jpg\">\n                                    </div>\n                                    <div id=\"desclocal\">\n                                        <label>Nombre:&nbsp;&nbsp;&nbsp;<span class=\"menucontent\">{{local.nombre}}</span></label><br>\n                                        <label>Categ:&nbsp;&nbsp;&nbsp;<span class=\"menucontent\">{{local.categorias.subcategoria[0]}}</span></label><br>\n                                        <label>Telf:&nbsp;&nbsp;&nbsp;<span class=\"menucontent\">{{local.telf}}</span></label><br>\n                                        <label>Distancia:&nbsp;&nbsp;&nbsp;<span class=\"menucontent\">x km</span></label>\n                                    </div>\n                                </section>\n                            </a>\n                        </li>\n                    </ul>\n                </div>\n                <div class=\"pager\">\n                    <ul ng-if=\"vm.pager.pages.length\" class=\"pagination\">\n                        <li ng-class=\"{disabled:vm.pager.currentPage === 1}\">\n                            <a ng-click=\"vm.setPage(1)\">First</a>\n                        </li>\n                        <li ng-class=\"{disabled:vm.pager.currentPage === 1}\">\n                            <a ng-click=\"vm.setPage(vm.pager.currentPage - 1)\">Previous</a>\n                        </li>\n                        <li ng-repeat=\"page in vm.pager.pages\" ng-class=\"{active:vm.pager.currentPage === page}\">\n                            <a ng-click=\"vm.setPage(page)\">{{page}}</a>\n                        </li>                \n                        <li ng-class=\"{disabled:vm.pager.currentPage === vm.pager.totalPages}\">\n                            <a ng-click=\"vm.setPage(vm.pager.currentPage + 1)\">Next</a>\n                        </li>\n                        <li ng-class=\"{disabled:vm.pager.currentPage === vm.pager.totalPages}\">\n                            <a ng-click=\"vm.setPage(vm.pager.totalPages)\">Last</a>\n                        </li>\n                    </ul>\n                </div>\n            </div>\n        </section>\n    </section>\n</section>");
   $templateCache.put("profile/profile-articles.html", "<article-list limit=\"5\" list-config=\"$ctrl.listConfig\"></article-list>\n");
   $templateCache.put("profile/profile.html", "<link rel=\"stylesheet\" href=\"../style/profile_style.css\">\n<section class= \"grid-profile\">\n<div class=\"profile-page\">\n  <!-- User\'s basic info & action buttons -->\n  <div class=\"user-info\">\n    <div class=\"container\">\n      <div class=\"row\">\n        <div class=\"col-xs-12 col-md-10 offset-md-1\">\n\n          <div class=\"grid-infouser\">\n\n            <div class=\"profilepic\">\n              <img ng-src=\"{{::$ctrl.profile.image}}\" class=\"user-img\" />\n            </div>\n            <div class=\"info-user\">\n              <a ui-sref=\"app.settings\"\n                class=\"linkprofile btn btn-sm btn-outline-secondary action-btn\"\n                ng-show=\"$ctrl.isUser\">\n                <i class=\"fa fa-cog\"></i> Edit Profile Settings\n              </a>\n              <br>\n              <hr>\n              <h2 ng-bind=\"::$ctrl.profile.username\"></h2>\n              <p ng-bind=\"::$ctrl.profile.bio\"></p>\n            </div>\n        </div>\n\n        </div>\n      </div>\n    </div>\n  </div>\n\n</div>\n\n</section>");
   $templateCache.put("settings/settings.html", "  <link rel=\"stylesheet\" href=\"../style/settings_style.css\">\n  <div class=\"settings-page\">\n    <div class=\"container page\">\n      <div class=\"row\">\n        <div class=\"col-md-6 offset-md-3 col-xs-12\">\n\n          <h1 class=\"text-xs-center\">Profile Settings</h1>\n          <hr>\n          <list-errors errors=\"$ctrl.errors\"></list-errors>\n\n          <form ng-submit=\"$ctrl.submitForm()\">\n            <fieldset ng-disabled=\"$ctrl.isSubmitting\">\n\n              \n              <fieldset class=\"form-group\">\n                <label>Profile Pic: </label>\n                <input class=\"form-control\"\n                  type=\"text\"\n                  placeholder=\"URL of profile picture\"\n                  ng-model=\"$ctrl.formData.image\" />\n              </fieldset>\n\n              \n              <fieldset class=\"form-group\">\n                <label>Username: </label>\n                <input class=\"form-control form-control-lg\"\n                  type=\"text\"\n                  placeholder=\"Username\"\n                  ng-model=\"$ctrl.formData.username\" />\n              </fieldset>\n\n                <fieldset class=\"form-group\">\n                    <label>New Password: </label>\n                    <input class=\"form-control form-control-lg\"\n                      type=\"password\"\n                      placeholder=\"New Password\"\n                      ng-model=\"$ctrl.formData.password\" />\n                </fieldset>\n\n                \n                <fieldset class=\"form-group\">\n                    <label>Country: </label>\n                    <select class=\"form-control form-control-lg\"\n                    ng-model=\"$ctrl.formData.country\" \n                    >\n                    <option ng-repeat=\"option in $ctrl.country\" value={{option.pais}}>{{option.pais}}</option>\n                    </select>\n                </fieldset>\n\n              <fieldset class=\"form-group\">\n                <label>Bio:</label>\n                <textarea class=\"form-control form-control-lg\"\n                  rows=\"8\"\n                  placeholder=\"Short bio about you\"\n                  ng-model=\"$ctrl.formData.bio\">\n                </textarea>\n              </fieldset>\n\n              <button class=\"btn btn-lg btn-primary pull-xs-right\"\n                type=\"submit\">\n                Update Settings\n              </button>\n\n            </fieldset>\n          </form>\n        </div>\n      </div>\n    </div>\n  </div>\n");
+  $templateCache.put("stripe/checkout.html", "<link rel=\"stylesheet\" type=\"text/css\" href=\"style/checkout_style.css\" data-rel-css=\"\" />\n\n<div class=\"container\">\n    <div class=\"col-sm-6\">\n      <form ng-submit=\"$ctrl.submitForm()\">\n        <fieldset>\n            <legend>Payment</legend>\n            <div class=\"control-group\">\n                <label label-default=\"\" class=\"control-label\">Card Holder\'s Name</label>\n                <div class=\"controls\">\n                    <input type=\"text\" class=\"form-control\" pattern=\"\\w+ \\w+.*\" title=\"First and last name\" required=\"\" placeholder=\"Name Surname\" ng-model=\"$ctrl.formData.cardHolder\">\n                </div>\n            </div>\n            <div class=\"control-group\">\n                <label label-default=\"\" class=\"control-label\">User email</label>\n                <div class=\"controls\">\n                    <input type=\"email\" class=\"form-control\" title=\"The email\" required=\"\" placeholder=\"example@email.es\" ng-model=\"$ctrl.formData.email\">\n                </div>\n            </div>\n            <div class=\"control-group\">\n                <label label-default=\"\" class=\"control-label\">Card Number</label>\n                <div class=\"controls\">\n                    <div class=\"row\">\n                        <div class=\"col-md-3\">\n                            <input type=\"text\" class=\"form-control\" autocomplete=\"off\" maxlength=\"4\" pattern=\"\\d{4}\" title=\"First four digits\" required=\"\" placeholder=\"4242\" ng-model=\"$ctrl.formData.card1\">\n                        </div>\n                        <div class=\"col-md-3\">\n                            <input type=\"text\" class=\"form-control\" autocomplete=\"off\" maxlength=\"4\" pattern=\"\\d{4}\" title=\"Second four digits\" required=\"\" placeholder=\"4242\" ng-model=\"$ctrl.formData.card2\">\n                        </div>\n                        <div class=\"col-md-3\">\n                            <input type=\"text\" class=\"form-control\" autocomplete=\"off\" maxlength=\"4\" pattern=\"\\d{4}\" title=\"Third four digits\" required=\"\" placeholder=\"4242\" ng-model=\"$ctrl.formData.card3\">\n                        </div>\n                        <div class=\"col-md-3\">\n                            <input type=\"text\" class=\"form-control\" autocomplete=\"off\" maxlength=\"4\" pattern=\"\\d{4}\" title=\"Fourth four digits\" required=\"\" placeholder=\"4242\" ng-model=\"$ctrl.formData.card4\">\n                        </div>\n                    </div>\n                </div>\n            </div>\n            <div class=\"control-group\">\n                <label label-default=\"\" class=\"control-label\">Card Expiry Date</label>\n                <div class=\"controls\">\n                    <div class=\"row\">\n                        <div class=\"col-md-9\">\n                            <select class=\"form-control\" name=\"cc_exp_mo\" ng-model=\"$ctrl.formData.expMonth\">\n                                <option value=\"01\" selected>January</option>\n                                <option value=\"02\">February</option>\n                                <option value=\"03\">March</option>\n                                <option value=\"04\">April</option>\n                                <option value=\"05\">May</option>\n                                <option value=\"06\">June</option>\n                                <option value=\"07\">July</option>\n                                <option value=\"08\">August</option>\n                                <option value=\"09\">September</option>\n                                <option value=\"10\">October</option>\n                                <option value=\"11\">November</option>\n                                <option value=\"12\">December</option>\n                            </select>\n                        </div>\n                        <div class=\"col-md-3\">\n                            <input type=\"text\" name=\"cc_exp_yr\" class=\"form-control\" autocomplete=\"off\" maxlength=\"4\" pattern=\"\\d{4}\" title=\"Fourth four digits\" required=\"\" placeholder=\"2025\" ng-model=\"$ctrl.formData.expYear\">\n                        </div>\n                    </div>\n                </div>\n            </div>\n            <div class=\"control-group\">\n                <label label-default=\"\" class=\"control-label\">Card CVV</label>\n                <div class=\"controls\">\n                    <div class=\"row\">\n                        <div class=\"col-md-3\">\n                            <input type=\"text\" class=\"form-control\" autocomplete=\"off\" maxlength=\"3\" pattern=\"\\d{3}\" title=\"Three digits at back of your card\" required=\"\" placeholder=\"424\" ng-model=\"$ctrl.formData.cvv\">\n                        </div>\n                        <div class=\"col-md-8\"></div>\n                    </div>\n                </div>\n            </div>\n            <div class=\"control-group\">\n              <label label-default=\"\" class=\"control-label\"></label>\n              <div class=\"controls\">\n                <button type=\"submit\" class=\"btn btn-primary\">Submit</button> \n                <button type=\"button\" class=\"btn btn-default\">Cancel</button>\n              </div>\n            </div>\n        </fieldset>\n      </form>\n    </div>\n</div>\n<hr>\n");
+  $templateCache.put("stripe/shopping-cart.html", "<link rel=\"stylesheet\" href=\"style/shopping_style.css\">\n<div class=\"container\">\n	<table id=\"cart\" class=\"table table-hover table-condensed\">\n    				<thead>\n						<tr>\n							<th style=\"width:50%\">Product</th>\n							<th style=\"width:10%\">Price</th>\n							<th style=\"width:8%\">Quantity</th>\n							<th style=\"width:22%\" class=\"text-center\">Subtotal</th>\n							<th style=\"width:10%\"></th>\n						</tr>\n					</thead>\n					<tbody>\n						<tr ng-repeat=\"producto in $ctrl.productos\" >\n							<td data-th=\"Product\">\n								<div class=\"row\">\n									<div class=\"col-sm-2 hidden-xs\"><img src=\"{{producto[1].foto}}\" alt=\"Picture of {{producto[1].nombre}}\" class=\"img-responsive\"/></div>\n									<div class=\"col-sm-10\">\n										<h4 class=\"nomargin\">{{producto[1].nombre}}</h4>\n										<p>{{producto[1].descripcion}}</p>\n									</div>\n								</div>\n							</td>\n							<td data-th=\"Price\">{{producto[1].price}}</td>\n							<td data-th=\"Quantity\">\n								<input type=\"number\" class=\"form-control text-center\" value=\"{{producto[1].cant}}\" ng-model=\"valor\" ng-change=\"$ctrl.changeCant($index,valor)\">\n							</td>\n							<td data-th=\"Subtotal\" class=\"text-center\">{{producto[1].price * producto[1].cant}}</td>\n							<td class=\"actions\" data-th=\"\">\n								<button class=\"btn btn-info btn-sm\" ng-click=\"$ctrl.reload()\"><i class=\"fa fa-refresh\"></i></button>\n								<button class=\"btn btn-danger btn-sm\" ng-click=\"$ctrl.removeProduct($index)\"><i class=\"fa fa-trash-o\"></i></button>								\n							</td>\n						</tr>\n					</tbody>\n					<tfoot>\n						<tr class=\"visible-xs\">\n							<td class=\"text-center\"><strong>Total {{$ctrl.totalPrice}}</strong></td>\n						</tr>\n						<tr>\n							<td><a ui-sref=\"app.locales\" class=\"btn btn-warning\"><i class=\"fa fa-angle-left\"></i> Continue Shopping</a></td>\n							<td colspan=\"2\" class=\"hidden-xs\"></td>\n							<td class=\"hidden-xs text-center\"><strong>Total ${{$ctrl.totalPrice}}</strong></td>\n							<td><a ui-sref=\"app.stripe\" class=\"btn btn-success btn-block\">Checkout <i class=\"fa fa-angle-right\"></i></a></td>\n						</tr>\n					</tfoot>\n				</table>\n</div>");
   $templateCache.put("components/article-helpers/article-list.html", "<article-preview\n  article=\"article\"\n  ng-repeat=\"article in $ctrl.list\">\n</article-preview>\n\n<div class=\"article-preview\"\n  ng-hide=\"!$ctrl.loading\">\n  Loading articles...\n</div>\n\n<div class=\"article-preview\"\n  ng-show=\"!$ctrl.loading && !$ctrl.list.length\">\n  No articles are here... yet.\n</div>\n\n<list-pagination\n total-pages=\"$ctrl.listConfig.totalPages\"\n current-page=\"$ctrl.listConfig.currentPage\"\n ng-hide=\"$ctrl.listConfig.totalPages <= 1\">\n</list-pagination>\n");
   $templateCache.put("components/article-helpers/article-meta.html", "<div class=\"article-meta\">\n  <a ui-sref=\"app.profile.main({ username:$ctrl.article.author.username })\">\n    <img ng-src=\"{{$ctrl.article.author.image}}\" />\n  </a>\n\n  <div class=\"info\">\n    <a class=\"author\"\n      ui-sref=\"app.profile.main({ username:$ctrl.article.author.username })\"\n      ng-bind=\"$ctrl.article.author.username\">\n    </a>\n    <span class=\"date\"\n      ng-bind=\"$ctrl.article.createdAt | date: \'longDate\' \">\n    </span>\n  </div>\n\n  <ng-transclude></ng-transclude>\n</div>\n");
   $templateCache.put("components/article-helpers/article-preview.html", "<div class=\"article-preview\">\n  <article-meta article=\"$ctrl.article\">\n    <favorite-btn\n      article=\"$ctrl.article\"\n      class=\"pull-xs-right\">\n      {{$ctrl.article.favoritesCount}}\n    </favorite-btn>\n  </article-meta>\n\n  <a ui-sref=\"app.article({ slug: $ctrl.article.slug })\" class=\"preview-link\">\n    <h1 ng-bind=\"$ctrl.article.title\"></h1>\n    <p ng-bind=\"$ctrl.article.description\"></p>\n    <span>Read more...</span>\n    <ul class=\"tag-list\">\n      <li class=\"tag-default tag-pill tag-outline\"\n        ng-repeat=\"tag in $ctrl.article.tagList\">\n        {{tag}}\n      </li>\n    </ul>\n  </a>\n</div>\n");
@@ -44946,7 +46575,7 @@ angular.module("templates", []).run(["$templateCache", function ($templateCache)
   $templateCache.put("components/buttons/follow-btn.html", "<button\n  class=\"btn btn-sm action-btn\"\n  ng-class=\"{ \'disabled\': $ctrl.isSubmitting,\n              \'btn-outline-secondary\': !$ctrl.user.following,\n              \'btn-secondary\': $ctrl.user.following }\"\n  ng-click=\"$ctrl.submit()\">\n  <i class=\"ion-plus-round\"></i>\n  &nbsp;\n  {{ $ctrl.user.following ? \'Unfollow\' : \'Follow\' }} {{ $ctrl.user.username }}\n</button>\n");
 }]);
 
-},{}],31:[function(require,module,exports){
+},{}],69:[function(require,module,exports){
 'use strict';
 
 authInterceptor.$inject = ["JWT", "AppConstants", "$window", "$q"];
@@ -44981,7 +46610,7 @@ function authInterceptor(JWT, AppConstants, $window, $q) {
 
 exports.default = authInterceptor;
 
-},{}],32:[function(require,module,exports){
+},{}],70:[function(require,module,exports){
 'use strict';
 
 ContactConfig.$inject = ["$stateProvider"];
@@ -45002,7 +46631,7 @@ function ContactConfig($stateProvider) {
 
 exports.default = ContactConfig;
 
-},{}],33:[function(require,module,exports){
+},{}],71:[function(require,module,exports){
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -45043,7 +46672,7 @@ ContactCtrl.$inject = ["Contact", "AppConstants", "$scope", "$state", "toastr"];
 
 exports.default = ContactCtrl;
 
-},{}],34:[function(require,module,exports){
+},{}],72:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -45077,7 +46706,7 @@ contactModule.controller('ContactCtrl', _contact4.default);
 
 exports.default = contactModule;
 
-},{"./contact.config":32,"./contact.controller":33,"angular":5}],35:[function(require,module,exports){
+},{"./contact.config":70,"./contact.controller":71,"angular":12}],73:[function(require,module,exports){
 'use strict';
 
 EditorConfig.$inject = ["$stateProvider"];
@@ -45120,7 +46749,7 @@ function EditorConfig($stateProvider) {
 
 exports.default = EditorConfig;
 
-},{}],36:[function(require,module,exports){
+},{}],74:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -45189,7 +46818,7 @@ var EditorCtrl = function () {
 
 exports.default = EditorCtrl;
 
-},{}],37:[function(require,module,exports){
+},{}],75:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -45223,7 +46852,7 @@ editorModule.controller('EditorCtrl', _editor4.default);
 
 exports.default = editorModule;
 
-},{"./editor.config":35,"./editor.controller":36,"angular":5}],38:[function(require,module,exports){
+},{"./editor.config":73,"./editor.controller":74,"angular":12}],76:[function(require,module,exports){
 'use strict';
 
 HomeConfig.$inject = ["$stateProvider"];
@@ -45244,7 +46873,7 @@ function HomeConfig($stateProvider) {
 
 exports.default = HomeConfig;
 
-},{}],39:[function(require,module,exports){
+},{}],77:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -45286,7 +46915,7 @@ HomeCtrl.$inject = ["User", "Categorias", "AppConstants", "$scope"];
 
 exports.default = HomeCtrl;
 
-},{}],40:[function(require,module,exports){
+},{}],78:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -45320,7 +46949,7 @@ homeModule.controller('HomeCtrl', _home4.default);
 
 exports.default = homeModule;
 
-},{"./home.config":38,"./home.controller":39,"angular":5}],41:[function(require,module,exports){
+},{"./home.config":76,"./home.controller":77,"angular":12}],79:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -45348,7 +46977,7 @@ var AppFooter = {
 
 exports.default = AppFooter;
 
-},{}],42:[function(require,module,exports){
+},{}],80:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -45382,7 +47011,7 @@ var AppHeader = {
 
 exports.default = AppHeader;
 
-},{}],43:[function(require,module,exports){
+},{}],81:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -45414,7 +47043,7 @@ layoutModule.component('appFooter', _footer2.default);
 
 exports.default = layoutModule;
 
-},{"./footer.component":41,"./header.component":42,"angular":5}],44:[function(require,module,exports){
+},{"./footer.component":79,"./header.component":80,"angular":12}],82:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -45448,7 +47077,7 @@ localModule.controller('LocalCtrl', _local4.default);
 
 exports.default = localModule;
 
-},{"./local.config":45,"./local.controller":46,"angular":5}],45:[function(require,module,exports){
+},{"./local.config":83,"./local.controller":84,"angular":12}],83:[function(require,module,exports){
 'use strict';
 
 LocalConfig.$inject = ["$stateProvider"];
@@ -45471,6 +47100,13 @@ function LocalConfig($stateProvider) {
         }, function (err) {
           return $state.go('app.home');
         });
+      }],
+      productos: ["Local", "$state", "$stateParams", function productos(Local, $state, $stateParams) {
+        return Local.getProducts($stateParams.id).then(function (productos) {
+          return productos;
+        }, function (err) {
+          return $state.go('app.home');
+        });
       }]
     }
   });
@@ -45478,49 +47114,60 @@ function LocalConfig($stateProvider) {
 
 exports.default = LocalConfig;
 
-},{}],46:[function(require,module,exports){
+},{}],84:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
     value: true
 });
 
-var _marked = require('marked');
-
-var _marked2 = _interopRequireDefault(_marked);
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
 
 function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
 
-var LocalCtrl = function LocalCtrl(local, User, $sce, $rootScope, $scope, $anchorScroll, $location) {
-    'ngInject';
+var LocalCtrl = function () {
+    LocalCtrl.$inject = ["local", "User", "$sce", "$rootScope", "$scope", "$anchorScroll", "$location", "productos", "toastr"];
+    function LocalCtrl(local, User, $sce, $rootScope, $scope, $anchorScroll, $location, productos, toastr) {
+        'ngInject';
 
-    _classCallCheck(this, LocalCtrl);
+        _classCallCheck(this, LocalCtrl);
 
-    this.local = local;
-    this.currentUser = User.current;
+        this.local = local;
+        this._User = User;
+        this.currentUser = User.current;
+        this.productos = productos;
+        this._toastr = toastr;
 
-    if (!this.local.foto) {
-        this.local.foto = "https://www.wien.info/media/images/41993-das-loft-sofitel-19to1.jpeg";
+        if (!this.local.foto) {
+            this.local.foto = "https://www.wien.info/media/images/41993-das-loft-sofitel-19to1.jpeg";
+        }
+
+        $rootScope.setPageTitle(this.local.nombre);
+        $scope.gotoAnchor = function (x) {
+            var newHash = 'anchor' + x;
+            if ($location.hash() !== newHash) {
+
+                $location.hash('anchor' + x);
+            } else {
+                $anchorScroll();
+            }
+        };
     }
 
-    $rootScope.setPageTitle(this.local.nombre);
-    $scope.gotoAnchor = function (x) {
-        var newHash = 'anchor' + x;
-        if ($location.hash() !== newHash) {
-
-            $location.hash('anchor' + x);
-        } else {
-            $anchorScroll();
+    _createClass(LocalCtrl, [{
+        key: 'addCart',
+        value: function addCart(product) {
+            this._User.addProduct(product);
+            this._toastr.success('Se añadio correctamente', 'Carrito');
         }
-    };
-};
-LocalCtrl.$inject = ["local", "User", "$sce", "$rootScope", "$scope", "$anchorScroll", "$location"];
+    }]);
+
+    return LocalCtrl;
+}();
 
 exports.default = LocalCtrl;
 
-},{"marked":6}],47:[function(require,module,exports){
+},{}],85:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -45564,7 +47211,7 @@ localesModule.controller('LocalesCtrl', _locales4.default);
 
 exports.default = localesModule;
 
-},{"./locales.config":48,"./locales.controller":49,"./page.factory":50,"angular":5}],48:[function(require,module,exports){
+},{"./locales.config":86,"./locales.controller":87,"./page.factory":88,"angular":12}],86:[function(require,module,exports){
 'use strict';
 
 LocalesConfig.$inject = ["$stateProvider"];
@@ -45603,7 +47250,7 @@ function LocalesConfig($stateProvider) {
 
 exports.default = LocalesConfig;
 
-},{}],49:[function(require,module,exports){
+},{}],87:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -45668,7 +47315,7 @@ LocalesCtrl.$inject = ["User", "Locales", "AppConstants", "$scope", "PagerServic
 
 exports.default = LocalesCtrl;
 
-},{}],50:[function(require,module,exports){
+},{}],88:[function(require,module,exports){
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -45735,7 +47382,7 @@ function PagerService() {
 }
 exports.default = PagerService;
 
-},{}],51:[function(require,module,exports){
+},{}],89:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -45775,7 +47422,7 @@ profileModule.controller('ProfileArticlesCtrl', _profileArticles2.default);
 
 exports.default = profileModule;
 
-},{"./profile-articles.controller":52,"./profile.config":53,"./profile.controller":54,"angular":5}],52:[function(require,module,exports){
+},{"./profile-articles.controller":90,"./profile.config":91,"./profile.controller":92,"angular":12}],90:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -45813,7 +47460,7 @@ ProfileArticlesCtrl.$inject = ["profile", "$state", "$rootScope"];
 
 exports.default = ProfileArticlesCtrl;
 
-},{}],53:[function(require,module,exports){
+},{}],91:[function(require,module,exports){
 'use strict';
 
 ProfileConfig.$inject = ["$stateProvider"];
@@ -45856,7 +47503,7 @@ function ProfileConfig($stateProvider) {
 
 exports.default = ProfileConfig;
 
-},{}],54:[function(require,module,exports){
+},{}],92:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -45883,7 +47530,7 @@ ProfileCtrl.$inject = ["profile", "User"];
 
 exports.default = ProfileCtrl;
 
-},{}],55:[function(require,module,exports){
+},{}],93:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -46000,7 +47647,7 @@ var Articles = function () {
 
 exports.default = Articles;
 
-},{}],56:[function(require,module,exports){
+},{}],94:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -46040,7 +47687,7 @@ var Categorias = function () {
 
 exports.default = Categorias;
 
-},{}],57:[function(require,module,exports){
+},{}],95:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -46101,7 +47748,7 @@ var Comments = function () {
 
 exports.default = Comments;
 
-},{}],58:[function(require,module,exports){
+},{}],96:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -46143,7 +47790,7 @@ var Contact = function () {
 
 exports.default = Contact;
 
-},{}],59:[function(require,module,exports){
+},{}],97:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -46194,6 +47841,10 @@ var _local = require('./local.service');
 
 var _local2 = _interopRequireDefault(_local);
 
+var _stripe = require('./stripe.service');
+
+var _stripe2 = _interopRequireDefault(_stripe);
+
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
 // Create the module where our functionality can attach to
@@ -46219,9 +47870,11 @@ servicesModule.service('Contact', _contact2.default);
 
 servicesModule.service('Local', _local2.default);
 
+servicesModule.service('Stripe', _stripe2.default);
+
 exports.default = servicesModule;
 
-},{"./articles.service":55,"./categorias.service":56,"./comments.service":57,"./contact.service":58,"./jwt.service":60,"./local.service":61,"./locales.service":62,"./profile.service":63,"./tags.service":64,"./user.service":65,"angular":5}],60:[function(require,module,exports){
+},{"./articles.service":93,"./categorias.service":94,"./comments.service":95,"./contact.service":96,"./jwt.service":98,"./local.service":99,"./locales.service":100,"./profile.service":101,"./stripe.service":102,"./tags.service":103,"./user.service":104,"angular":12}],98:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -46265,7 +47918,7 @@ var JWT = function () {
 
 exports.default = JWT;
 
-},{}],61:[function(require,module,exports){
+},{}],99:[function(require,module,exports){
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -46317,6 +47970,25 @@ var Locals = function () {
             });
             return deferred.promise;
         }
+    }, {
+        key: "getProducts",
+        value: function getProducts(id) {
+            console.log('jalo' + id);
+            var deferred = this._$q.defer();
+            if (!id.replace(" ", "")) {
+                deferred.reject("Product id is empty");
+                return deferred.promise;
+            }
+            this._$http({
+                url: this._AppConstants.api + '/locales/productos/' + id,
+                method: 'GET'
+            }).then(function (res) {
+                return deferred.resolve(res.data.productos);
+            }, function (err) {
+                return deferred.reject(err);
+            });
+            return deferred.promise;
+        }
     }]);
 
     return Locals;
@@ -46324,7 +47996,7 @@ var Locals = function () {
 
 exports.default = Locals;
 
-},{}],62:[function(require,module,exports){
+},{}],100:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -46364,7 +48036,7 @@ var Locales = function () {
 
 exports.default = Locales;
 
-},{}],63:[function(require,module,exports){
+},{}],101:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -46423,7 +48095,59 @@ var Profile = function () {
 
 exports.default = Profile;
 
-},{}],64:[function(require,module,exports){
+},{}],102:[function(require,module,exports){
+'use strict';
+
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+
+var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
+
+function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+var Stripe = function () {
+    Stripe.$inject = ["JWT", "AppConstants", "$http", "$q", "toastr"];
+    function Stripe(JWT, AppConstants, $http, $q, toastr) {
+        'ngInject';
+
+        _classCallCheck(this, Stripe);
+
+        this._AppConstants = AppConstants;
+        this._$http = $http;
+        this._toastr = toastr;
+    }
+
+    _createClass(Stripe, [{
+        key: 'charge',
+        value: function charge(token, cart, email) {
+            var _this = this;
+
+            console.log("Service Stripe");
+            return this._$http({
+                url: this._AppConstants.api + '/stripe/',
+                method: 'POST',
+                data: {
+                    stripeToken: token,
+                    cart: JSON.stringify(cart),
+                    email: email
+                }
+            }).then(function (res) {
+                console.log('Ok ;+)');
+                _this._toastr.success('Se ha pagado correctamente', 'Checkout');
+            }, function (err) {
+                console.log('err stripe service');
+                return err;
+            });
+        }
+    }]);
+
+    return Stripe;
+}();
+
+exports.default = Stripe;
+
+},{}],103:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -46463,7 +48187,7 @@ var Tags = function () {
 
 exports.default = Tags;
 
-},{}],65:[function(require,module,exports){
+},{}],104:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -46488,6 +48212,7 @@ var User = function () {
     this._$q = $q;
 
     this.current = null;
+    this.cart = new Map();
   }
 
   _createClass(User, [{
@@ -46615,6 +48340,30 @@ var User = function () {
 
       return deferred.promise;
     }
+  }, {
+    key: 'addProduct',
+    value: function addProduct(product) {
+      if (this.cart.get(product._id)) {
+        var productMap = this.cart.get(product._id);
+        productMap.cant += 1;
+        this.cart.set(product._id, productMap);
+      } else {
+        product.cant = 1;
+        this.cart.set(product._id, product);
+      }
+    }
+  }, {
+    key: 'removeProduct',
+    value: function removeProduct(productId) {
+      if (this.cart.get(productId)) {
+        this.cart.delete(productId);
+      }
+    }
+  }, {
+    key: 'clearCart',
+    value: function clearCart() {
+      this.cart = new Map();
+    }
   }]);
 
   return User;
@@ -46622,7 +48371,7 @@ var User = function () {
 
 exports.default = User;
 
-},{}],66:[function(require,module,exports){
+},{}],105:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -46655,7 +48404,7 @@ settingsModule.controller('SettingsCtrl', _settings4.default);
 
 exports.default = settingsModule;
 
-},{"./settings.config":67,"./settings.controller":68,"angular":5}],67:[function(require,module,exports){
+},{"./settings.config":106,"./settings.controller":107,"angular":12}],106:[function(require,module,exports){
 'use strict';
 
 SettingsConfig.$inject = ["$stateProvider"];
@@ -46681,7 +48430,7 @@ function SettingsConfig($stateProvider) {
 
 exports.default = SettingsConfig;
 
-},{}],68:[function(require,module,exports){
+},{}],107:[function(require,module,exports){
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -46734,4 +48483,224 @@ var SettingsCtrl = function () {
 
 exports.default = SettingsCtrl;
 
-},{}]},{},[8]);
+},{}],108:[function(require,module,exports){
+'use strict';
+
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+
+var _angular = require('angular');
+
+var _angular2 = _interopRequireDefault(_angular);
+
+var _stripe = require('./stripe.config');
+
+var _stripe2 = _interopRequireDefault(_stripe);
+
+var _stripe3 = require('./stripe.controller');
+
+var _stripe4 = _interopRequireDefault(_stripe3);
+
+var _shopping = require('./shopping.controller');
+
+var _shopping2 = _interopRequireDefault(_shopping);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+var stripeModule = _angular2.default.module('app.stripe', []);
+
+// Config
+
+stripeModule.config(_stripe2.default);
+stripeModule.config(["stripeProvider", function (stripeProvider) {
+    stripeProvider.setPublishableKey('PublisherKey');
+}]);
+
+// Controllers
+
+stripeModule.controller('StripeCtrl', _stripe4.default);
+
+stripeModule.controller('ShoppingCtrl', _shopping2.default);
+
+exports.default = stripeModule;
+
+},{"./shopping.controller":109,"./stripe.config":110,"./stripe.controller":111,"angular":12}],109:[function(require,module,exports){
+'use strict';
+
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+
+var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
+
+function _toConsumableArray(arr) { if (Array.isArray(arr)) { for (var i = 0, arr2 = Array(arr.length); i < arr.length; i++) { arr2[i] = arr[i]; } return arr2; } else { return Array.from(arr); } }
+
+function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+var ShoppingCtrl = function () {
+    ShoppingCtrl.$inject = ["User", "$state", "stripe"];
+    function ShoppingCtrl(User, $state, stripe) {
+        'ngInject';
+
+        var _this = this;
+
+        _classCallCheck(this, ShoppingCtrl);
+
+        this._User = User;
+        this.productos = [].concat(_toConsumableArray(this._User.cart));
+        this._$state = $state;
+        this.totalPrice = 0;
+        if (this.productos.length == 0) {
+            this._$state.go('app.locales');
+        }
+        this.productos.forEach(function (producto) {
+            _this.totalPrice += producto[1].price * producto[1].cant;
+        });
+    }
+
+    _createClass(ShoppingCtrl, [{
+        key: 'changeCant',
+        value: function changeCant(i, value) {
+            var product = this._User.cart.get(this.productos[i][0]);
+            product.cant = value;
+            this._User.cart.set(this.productos[i][0], product);
+            this._$state.reload();
+        }
+    }, {
+        key: 'reload',
+        value: function reload() {
+            this._$state.reload();
+        }
+    }, {
+        key: 'removeProduct',
+        value: function removeProduct(i) {
+            this._User.removeProduct(this.productos[i][0]);
+            this._$state.reload();
+        }
+    }]);
+
+    return ShoppingCtrl;
+}();
+
+exports.default = ShoppingCtrl;
+
+},{}],110:[function(require,module,exports){
+'use strict';
+
+StripeConfig.$inject = ["$stateProvider"];
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+function StripeConfig($stateProvider) {
+    'ngInject';
+
+    $stateProvider.state('app.stripe', {
+        url: '/checkout',
+        controller: 'StripeCtrl',
+        controllerAs: '$ctrl',
+        templateUrl: 'stripe/checkout.html',
+        title: 'Stripe',
+        resolve: {
+            auth: ["User", function auth(User) {
+                return User.ensureAuthIs(true);
+            }]
+        }
+    }).state('app.shopping', {
+        url: '/shopping',
+        controller: 'ShoppingCtrl',
+        controllerAs: '$ctrl',
+        templateUrl: 'stripe/shopping-cart.html',
+        title: 'Shopping',
+        resolve: {
+            auth: ["User", function auth(User) {
+                //   return User.ensureAuthIs(true);
+            }]
+        }
+    });
+};
+
+exports.default = StripeConfig;
+
+},{}],111:[function(require,module,exports){
+'use strict';
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+
+var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
+
+var _stripe = require('../services/stripe.service');
+
+var _stripe2 = _interopRequireDefault(_stripe);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+function _toConsumableArray(arr) { if (Array.isArray(arr)) { for (var i = 0, arr2 = Array(arr.length); i < arr.length; i++) { arr2[i] = arr[i]; } return arr2; } else { return Array.from(arr); } }
+
+function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+var StripeCtrl = function () {
+  StripeCtrl.$inject = ["User", "$state", "stripe", "Stripe", "toastr", "$scope"];
+  function StripeCtrl(User, $state, stripe, Stripe, toastr, $scope) {
+    'ngInject';
+
+    _classCallCheck(this, StripeCtrl);
+
+    this._User = User;
+    this._$state = $state;
+    this._stripe = stripe;
+    this._Stripe = Stripe;
+    this._toastr = toastr;
+    this._$scope = $scope;
+  }
+
+  _createClass(StripeCtrl, [{
+    key: 'submitForm',
+    value: function submitForm() {
+      var _this = this;
+
+      var name = this.formData.cardHolder;
+      var numberCard = this.formData.card1 + this.formData.card2 + this.formData.card3 + this.formData.card4;
+      var exp_month = this.formData.expMonth ? this.formData.expMonth : '01';
+      var exp_year = this.formData.expYear;
+      var cvv = this.formData.cvv;
+      var email = this.formData.email;
+      this._stripe.card.createToken({
+        number: numberCard,
+        name: name,
+        exp_month: exp_month,
+        exp_year: exp_year,
+        cvc: cvv,
+        address_zip: '12345'
+      }, function (status, response) {
+        if (status === 200) {
+          var token = response.id;
+          var cart = [].concat(_toConsumableArray(_this._User.cart));
+          var _email = _email;
+          _this.message = 'Success! Card token ' + token + '.';
+          console.log(_this.message);
+          _this._Stripe.charge(token, cart, _email).then(function (err) {
+            if (err) {
+              _this._toastr.error(err, 'No Pagado');
+            } else {
+              _this._User.clearCart();
+              _this._toastr.success('All OK', 'Pagado');
+              _this._$state.go('app.home');
+            }
+          });
+        } else {
+          _this.message = response.error.message;
+          _this._toastr.error(_this.message, 'Checkout');
+        }
+      });
+    }
+  }]);
+
+  return StripeCtrl;
+}();
+
+exports.default = StripeCtrl;
+
+},{"../services/stripe.service":102}]},{},[46]);

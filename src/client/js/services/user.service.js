@@ -9,7 +9,7 @@ export default class User {
     this._$q = $q;
 
     this.current = null;
-
+    this.cart = new Map();
   }
 
 
@@ -138,4 +138,22 @@ export default class User {
     return deferred.promise;
   }
 
+  addProduct(product){
+    if(this.cart.get(product._id)){
+      let productMap = this.cart.get(product._id);
+      productMap.cant += 1;
+      this.cart.set(product._id , productMap);
+    }else{
+      product.cant = 1;
+      this.cart.set(product._id,product);
+    }
+  }
+  removeProduct(productId){
+    if(this.cart.get(productId)){
+      this.cart.delete(productId);
+    }
+  }
+  clearCart(){
+    this.cart = new Map();
+  }
 }

@@ -47,6 +47,7 @@ require('./models/Categoria');
 require('./models/Locales');
 require('./models/Article');
 require('./models/Comment');
+require('./models/Producto');
 require('./config/passport');
 
 app.use(require('./routes'));

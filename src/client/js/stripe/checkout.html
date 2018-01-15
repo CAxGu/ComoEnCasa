@@ -1,0 +1,87 @@
+<link rel="stylesheet" type="text/css" href="style/checkout_style.css" data-rel-css="" />
+
+<div class="container">
+    <div class="col-sm-6">
+      <form ng-submit="$ctrl.submitForm()">
+        <fieldset>
+            <legend>Payment</legend>
+            <div class="control-group">
+                <label label-default="" class="control-label">Card Holder's Name</label>
+                <div class="controls">
+                    <input type="text" class="form-control" pattern="\w+ \w+.*" title="First and last name" required="" placeholder="Name Surname" ng-model="$ctrl.formData.cardHolder">
+                </div>
+            </div>
+            <div class="control-group">
+                <label label-default="" class="control-label">User email</label>
+                <div class="controls">
+                    <input type="email" class="form-control" title="The email" required="" placeholder="example@email.es" ng-model="$ctrl.formData.email">
+                </div>
+            </div>
+            <div class="control-group">
+                <label label-default="" class="control-label">Card Number</label>
+                <div class="controls">
+                    <div class="row">
+                        <div class="col-md-3">
+                            <input type="text" class="form-control" autocomplete="off" maxlength="4" pattern="\d{4}" title="First four digits" required="" placeholder="4242" ng-model="$ctrl.formData.card1">
+                        </div>
+                        <div class="col-md-3">
+                            <input type="text" class="form-control" autocomplete="off" maxlength="4" pattern="\d{4}" title="Second four digits" required="" placeholder="4242" ng-model="$ctrl.formData.card2">
+                        </div>
+                        <div class="col-md-3">
+                            <input type="text" class="form-control" autocomplete="off" maxlength="4" pattern="\d{4}" title="Third four digits" required="" placeholder="4242" ng-model="$ctrl.formData.card3">
+                        </div>
+                        <div class="col-md-3">
+                            <input type="text" class="form-control" autocomplete="off" maxlength="4" pattern="\d{4}" title="Fourth four digits" required="" placeholder="4242" ng-model="$ctrl.formData.card4">
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="control-group">
+                <label label-default="" class="control-label">Card Expiry Date</label>
+                <div class="controls">
+                    <div class="row">
+                        <div class="col-md-9">
+                            <select class="form-control" name="cc_exp_mo" ng-model="$ctrl.formData.expMonth">
+                                <option value="01" selected>January</option>
+                                <option value="02">February</option>
+                                <option value="03">March</option>
+                                <option value="04">April</option>
+                                <option value="05">May</option>
+                                <option value="06">June</option>
+                                <option value="07">July</option>
+                                <option value="08">August</option>
+                                <option value="09">September</option>
+                                <option value="10">October</option>
+                                <option value="11">November</option>
+                                <option value="12">December</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <input type="text" name="cc_exp_yr" class="form-control" autocomplete="off" maxlength="4" pattern="\d{4}" title="Fourth four digits" required="" placeholder="2025" ng-model="$ctrl.formData.expYear">
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="control-group">
+                <label label-default="" class="control-label">Card CVV</label>
+                <div class="controls">
+                    <div class="row">
+                        <div class="col-md-3">
+                            <input type="text" class="form-control" autocomplete="off" maxlength="3" pattern="\d{3}" title="Three digits at back of your card" required="" placeholder="424" ng-model="$ctrl.formData.cvv">
+                        </div>
+                        <div class="col-md-8"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="control-group">
+              <label label-default="" class="control-label"></label>
+              <div class="controls">
+                <button type="submit" class="btn btn-primary">Submit</button> 
+                <button type="button" class="btn btn-default">Cancel</button>
+              </div>
+            </div>
+        </fieldset>
+      </form>
+    </div>
+</div>
+<hr>

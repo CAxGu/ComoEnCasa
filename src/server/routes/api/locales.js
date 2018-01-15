@@ -2,6 +2,7 @@ var router = require('express').Router();
 var mongoose = require('mongoose');
 var auth = require('../auth');
 var locales = mongoose.model('locales');
+var productos = mongoose.model('Producto');
 
 
 
@@ -22,4 +23,14 @@ router.get('/local/:id', auth.optional, function(req, res, next) {
   }).catch(next);
 });
 
- module.exports = router;
+router.get('/productos/:id',auth.optional, function(req, res, next){
+  Promise.all([
+    productos.find({id_creator: req.params.id})
+  ]).then(function(results){
+    var user = results[0];
+    console.log(user);
+    return res.json({productos: (user)});
+  }).catch(next);
+});
+
+module.exports = router;

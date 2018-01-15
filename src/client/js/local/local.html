@@ -1,4 +1,6 @@
+<link rel="stylesheet" href="style/locales_style.css">
 <link rel="stylesheet" href="style/detail_style.css">
+
 <section id="sections" class="sections">
   <!-- information or sections inside the section with grey background -->
   <section id="content" class="content" >
@@ -17,24 +19,28 @@
             <img src="https://www.wien.info/media/images/41993-das-loft-sofitel-19to1.jpeg" alt="restaurant elite">
         </div>
       </div>
-      <div class="detail_div">
-        <div class="info_local">
-          <div class="box">Nombre: </div>
-          <div class="box" ng-bind="::$ctrl.local.nombre"></div>
-          <div class="box">Telefono: </div>
-          <div class="box" ng-bind="::$ctrl.local.telf"></div>
-          <div class="box">Direccion: </div>
-          <div class="box" ng-bind="::$ctrl.local.direccion"></div>
-          <div class="box">Poblacion: </div>
-          <div class="box" ng-bind="::$ctrl.local.poblacion"></div>
-          <div class="box">Provincia: </div>
-          <div class="box" ng-bind="::$ctrl.local.provincia"></div>
+      <h3 class="menus">Menus para elegir</h3>
+      <div class="gridlist">
+        <div class="listado">
+            <ul>
+                <li class="list"  ng-repeat="producto in $ctrl.productos" >
+                  <a>
+                    <section id="gridcardlocal">
+                        <div id="imagenlocal">
+                            <img src="{{producto.foto}}">
+                        </div>
+                        <div id="desclocal">
+                            <label>Nombre:&nbsp;&nbsp;&nbsp;<span class="menucontent">{{producto.nombre}}</span></label><br>
+                            <label>Descripcion:&nbsp;&nbsp;&nbsp;<span class="menucontent">{{producto.descripcion}}</span></label>
+                            <h3><p>{{producto.price}}</p></h3>
+                            <h3><button ng-click="$ctrl.addCart(producto)">Añadir al carrito</button></h3>
+                        </div>
+                    </section>
+                </a>
+                </li>
+            </ul>
         </div>
-      </div>
-      <div class="article-meta">
-        <!-- Show author info + favorite & follow buttons -->
-        <article-actions article="$ctrl.article"></article-actions>
-      </div>
+        </div>
       <div id="anchorgmaps">
         <ng-map center="[{{$ctrl.local.latitud}}, {{$ctrl.local.longitud}}]" zoom="13">
           <marker position="{{$ctrl.local.latitud}}, {{$ctrl.local.longitud}}"></marker>

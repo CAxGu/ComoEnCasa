@@ -14,6 +14,12 @@ function LocalConfig($stateProvider) {
             (local) => local,
             (err) => $state.go('app.home')
           )
+        },
+        productos: function(Local, $state, $stateParams){
+          return Local.getProducts($stateParams.id).then(
+            (productos) => productos,
+            (err) => $state.go('app.home')
+          )
         }
       }
     });

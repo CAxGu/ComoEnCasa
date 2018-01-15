@@ -10,7 +10,6 @@
       <li><a ui-sref-active="active" ui-sref="app.login">LOG IN</a></li>
       <li><a href="http://localhost:3000/api/twitter" class="a-fontAwesome fa fa-twitter-square" aria-hidden="true"></a></li>
       <li><a href="http://localhost:3000/api/facebook" class="a-fontAwesome fa fa-facebook-official" aria-hidden="true"></a></li>
-     
     </ul>
 
     <!-- loged in users -->
@@ -24,6 +23,7 @@
         ui-sref="app.profile.main({ username: $ctrl.currentUser.username})">
         <img width="35px" height="35px" ng-src="{{$ctrl.currentUser.image}}"><img>{{ $ctrl.currentUser.username }}     
       </a></li>
+      <li><a ui-sref-active="active" ui-sref="app.shopping" class=" a-fontAwesome fa fa-shopping-cart"></a></li>
       <li><a ng-click="$ctrl.logout()">LOG OUT</a></li>
     </ul>
   </div>

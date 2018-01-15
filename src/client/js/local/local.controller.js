@@ -1,10 +1,11 @@
-import marked from 'marked';
-
 class LocalCtrl{
-    constructor(local,User,$sce,$rootScope,$scope,$anchorScroll,$location){
+    constructor(local,User,$sce,$rootScope,$scope,$anchorScroll,$location, productos, toastr){
         'ngInject';
         this.local = local;
+        this._User = User;
         this.currentUser = User.current;
+        this.productos = productos;
+        this._toastr = toastr;
 
         if(!this.local.foto){
             this.local.foto = "https://www.wien.info/media/images/41993-das-loft-sofitel-19to1.jpeg";
@@ -21,5 +22,9 @@ class LocalCtrl{
             }
         };
     }
+    addCart(product) {
+        this._User.addProduct(product);
+        this._toastr.success('Se añadio correctamente','Carrito');
+    };
 }
 export default LocalCtrl;
